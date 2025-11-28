@@ -6,6 +6,129 @@ import { LegalAssistant } from './components/LegalAssistant';
 
 // --- SUB-COMPONENTS DEFINED OUTSIDE APP TO PREVENT RE-RENDER FOCUS LOSS ---
 
+const FileViewerModal = ({ 
+  document, 
+  caseTitle, 
+  onClose 
+}: { 
+  document: Document | null, 
+  caseTitle: string, 
+  onClose: () => void 
+}) => {
+  if (!document) return null;
+
+  // Simulate content based on file type
+  const renderContent = () => {
+    switch (document.type) {
+      case DocType.DEMANDA:
+        return (
+          <div className="bg-white text-black p-8 shadow-lg min-h-[600px] font-serif text-sm leading-relaxed max-w-3xl mx-auto">
+            <div className="text-right mb-8">
+              <p><strong>ASUNTO:</strong> {document.name.replace('.pdf', '')}</p>
+              <p><strong>EXPEDIENTE:</strong> {Math.floor(Math.random() * 1000)}/2023</p>
+            </div>
+            <p className="font-bold mb-4">C. JUEZ DE LO CIVIL EN TURNO</p>
+            <p className="mb-4 text-justify">
+              Por medio del presente escrito, y con fundamento en los artículos aplicables del Código Civil y de Procedimientos Civiles, 
+              comparezco para exponer los siguientes hechos y consideraciones de derecho...
+            </p>
+            <p className="mb-4 text-justify">
+              I. Que con fecha reciente se suscitaron los eventos descritos en el anexo uno...
+            </p>
+            <div className="my-8 border-t border-black w-1/2 mx-auto" />
+            <p className="text-center italic">Firma del Interesado</p>
+          </div>
+        );
+      case DocType.CURP:
+        return (
+          <div className="bg-white p-8 min-h-[400px] flex items-center justify-center">
+             <div className="border-4 border-green-600 p-4 w-full max-w-2xl rounded-lg bg-green-50 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-green-200 rounded-full blur-3xl opacity-50"></div>
+                <h2 className="text-center font-bold text-xl text-green-800 mb-4">CLAVE ÚNICA DE REGISTRO DE POBLACIÓN</h2>
+                <div className="grid grid-cols-3 gap-4 border border-green-600 p-4 bg-white/80 backdrop-blur">
+                   <div className="col-span-1 bg-slate-200 h-32 flex items-center justify-center text-xs text-slate-500">FOTO</div>
+                   <div className="col-span-2 space-y-2">
+                      <div className="h-4 bg-slate-200 w-3/4 rounded"></div>
+                      <div className="h-4 bg-slate-200 w-1/2 rounded"></div>
+                      <div className="h-8 bg-slate-200 w-full rounded mt-4"></div>
+                   </div>
+                </div>
+                <div className="mt-4 text-center text-xs text-green-800 font-mono">
+                  {document.name} - DOCUMENTO OFICIAL
+                </div>
+             </div>
+          </div>
+        );
+      case DocType.ACTA_NACIMIENTO:
+        return (
+           <div className="bg-[#fdfbf7] p-8 min-h-[600px] flex flex-col items-center border-8 border-double border-legal-900">
+              <div className="w-20 h-20 rounded-full border border-black flex items-center justify-center mb-4">
+                 <span className="font-serif text-3xl">MX</span>
+              </div>
+              <h1 className="font-serif text-2xl font-bold mb-2 uppercase tracking-widest text-center">Estados Unidos Mexicanos</h1>
+              <h2 className="font-serif text-lg mb-8 uppercase text-center border-b border-black pb-2 w-full">Acta de Nacimiento</h2>
+              <div className="w-full grid grid-cols-2 gap-8 font-serif text-sm">
+                 <div className="space-y-4">
+                    <p><span className="font-bold block">Entidad de Registro:</span> CIUDAD DE MÉXICO</p>
+                    <p><span className="font-bold block">Municipio de Registro:</span> BENITO JUÁREZ</p>
+                    <p><span className="font-bold block">Fecha de Registro:</span> {document.uploadDate}</p>
+                 </div>
+                 <div className="space-y-4">
+                    <p><span className="font-bold block">Nombre:</span> PERSONA REGISTRADA</p>
+                    <p><span className="font-bold block">Sexo:</span> INDISTINTO</p>
+                    <p><span className="font-bold block">CRIP:</span> 0909090909</p>
+                 </div>
+              </div>
+              <div className="mt-auto pt-10 w-full flex justify-around">
+                 <div className="border-t border-black w-32"></div>
+                 <div className="border-t border-black w-32"></div>
+              </div>
+           </div>
+        );
+      default:
+        return (
+          <div className="bg-slate-800 p-8 min-h-[400px] flex flex-col items-center justify-center text-slate-400">
+             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor" className="w-32 h-32 mb-4 text-legal-gold">
+               <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+             </svg>
+             <p className="text-xl">Vista previa no disponible para este formato.</p>
+             <p className="text-sm mt-2">{document.name}</p>
+          </div>
+        );
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-[fadeIn_0.3s_ease-out]">
+      <div className="w-full max-w-4xl h-[90vh] flex flex-col bg-legal-900 border border-legal-gold/30 rounded-xl shadow-2xl overflow-hidden relative">
+        {/* Header */}
+        <div className="p-4 bg-legal-800 border-b border-white/10 flex justify-between items-center shrink-0">
+           <div>
+              <h3 className="text-legal-gold font-serif font-bold text-lg">{document.name}</h3>
+              <p className="text-xs text-slate-400">Expediente: {caseTitle} • {document.size}</p>
+           </div>
+           <div className="flex gap-2">
+             <Button3D variant="ghost" onClick={() => alert('Descarga iniciada...')} className="text-xs">
+                ⬇ Descargar
+             </Button3D>
+             <button 
+                onClick={onClose} 
+                className="w-8 h-8 rounded-full bg-slate-700 hover:bg-red-600 text-white flex items-center justify-center transition-colors"
+             >
+                ✕
+             </button>
+           </div>
+        </div>
+
+        {/* Content View */}
+        <div className="flex-1 overflow-y-auto bg-[#334155] p-8 relative">
+           {renderContent()}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Sidebar = ({ 
   currentUser, 
   setViewState, 
@@ -304,9 +427,23 @@ const CasesView = ({
   currentUser: User | null,
   cases: Case[],
   users: User[],
-  handleAddCase: (e: React.FormEvent<HTMLFormElement>) => void,
+  handleAddCase: (data: { title: string, clientId: string, description: string }) => void,
   handleUploadDocument: (caseId: string, e: React.ChangeEvent<HTMLInputElement>, type: DocType) => void
 }) => {
+  // Local state for the new case form
+  const [newCase, setNewCase] = useState({ title: '', clientId: '', description: '' });
+  
+  // State for Document Viewer
+  const [viewingDoc, setViewingDoc] = useState<{ doc: Document, caseTitle: string } | null>(null);
+
+  const onSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newCase.title && newCase.clientId && newCase.description) {
+      handleAddCase(newCase);
+      setNewCase({ title: '', clientId: '', description: '' }); // Clear form
+    }
+  };
+
   // Clients only see their own cases
   const filteredCases = currentUser?.role === UserRole.CLIENT 
     ? cases.filter(c => c.clientId === currentUser.id)
@@ -316,6 +453,14 @@ const CasesView = ({
 
   return (
     <div className="space-y-8 animate-[fadeIn_0.5s_ease-out]">
+      {viewingDoc && (
+        <FileViewerModal 
+          document={viewingDoc.doc} 
+          caseTitle={viewingDoc.caseTitle} 
+          onClose={() => setViewingDoc(null)} 
+        />
+      )}
+
       <div className="flex justify-between items-end pb-4 border-b border-white/10">
         <div>
           <h2 className="text-2xl font-serif text-white">Expedientes</h2>
@@ -329,12 +474,18 @@ const CasesView = ({
           <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
             <span className="text-legal-gold text-xl">+</span> Nuevo Expediente
           </h3>
-          <form onSubmit={handleAddCase} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input3D label="Título del Caso" name="title" value="" onChange={() => {}} placeholder="Ej. Divorcio..." />
+          <form onSubmit={onSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input3D 
+              label="Título del Caso" 
+              name="title" 
+              value={newCase.title} 
+              onChange={(e) => setNewCase({ ...newCase, title: e.target.value })} 
+              placeholder="Ej. Divorcio..." 
+            />
             <Select3D 
               label="Cliente Asignado" 
-              value="" 
-              onChange={() => {}} 
+              value={newCase.clientId} 
+              onChange={(e) => setNewCase({ ...newCase, clientId: e.target.value })} 
               options={[
                 { label: 'Seleccione un cliente', value: '' },
                 ...clients.map(c => ({ label: c.name, value: c.id }))
@@ -342,7 +493,13 @@ const CasesView = ({
               name="clientId"
             />
              <div className="md:col-span-2">
-                <Input3D label="Descripción" name="description" value="" onChange={() => {}} placeholder="Detalles iniciales..." />
+                <Input3D 
+                  label="Descripción" 
+                  name="description" 
+                  value={newCase.description} 
+                  onChange={(e) => setNewCase({ ...newCase, description: e.target.value })} 
+                  placeholder="Detalles iniciales..." 
+                />
              </div>
              <div className="md:col-span-2 flex justify-end">
                 <Button3D type="submit">Crear Expediente</Button3D>
@@ -388,7 +545,12 @@ const CasesView = ({
                               <p className="text-xs text-slate-500">{doc.type} • {doc.size} • {doc.uploadDate}</p>
                             </div>
                          </div>
-                         <button className="text-legal-accent hover:text-white text-xs font-bold uppercase">Ver</button>
+                         <button 
+                           onClick={() => setViewingDoc({ doc, caseTitle: c.title })}
+                           className="text-legal-accent hover:text-white text-xs font-bold uppercase"
+                         >
+                           Ver
+                         </button>
                       </div>
                     ))}
                   </div>
@@ -496,23 +658,18 @@ function App() {
     setUsers(prev => prev.filter(u => u.id !== id));
   };
 
-  const handleAddCase = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const form = e.currentTarget;
-    const formData = new FormData(form);
-    
+  const handleAddCase = (caseData: { title: string, clientId: string, description: string }) => {
     const newCase: Case = {
       id: `c${Date.now()}`,
-      title: formData.get('title') as string,
-      clientId: formData.get('clientId') as string,
+      title: caseData.title,
+      clientId: caseData.clientId,
       status: 'Abierto',
-      description: formData.get('description') as string,
+      description: caseData.description,
       createdAt: new Date().toISOString().split('T')[0],
       documents: []
     };
 
     setCases(prev => [...prev, newCase]);
-    form.reset();
   };
 
   const handleUploadDocument = (caseId: string, e: React.ChangeEvent<HTMLInputElement>, type: DocType) => {
