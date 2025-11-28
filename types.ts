@@ -1,3 +1,4 @@
+
 export enum UserRole {
   ADMIN = 'ADMIN',
   EMPLOYEE = 'EMPLOYEE',
@@ -27,6 +28,7 @@ export interface Document {
   type: DocType;
   uploadDate: string;
   size: string;
+  url?: string; // Field added for real file viewing
 }
 
 export interface Case {

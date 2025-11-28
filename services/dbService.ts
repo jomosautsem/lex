@@ -104,7 +104,8 @@ export const dbCases = {
         name: d.name,
         type: d.type as DocType,
         uploadDate: new Date(d.upload_date).toISOString().split('T')[0],
-        size: d.size
+        size: d.size,
+        url: d.url // Mapped specifically for File Viewer
       })) : []
     }));
   },

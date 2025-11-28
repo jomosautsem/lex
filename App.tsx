@@ -8,6 +8,7 @@ import { dbAuth, dbCases, dbDocuments, dbEvents, dbEvents as dbAgenda } from './
 
 // --- SUB-COMPONENTS ---
 
+// v2.0 Real File Viewer
 const FileViewerModal = ({ 
   document, 
   caseTitle, 
@@ -19,26 +20,71 @@ const FileViewerModal = ({
 }) => {
   if (!document) return null;
 
+  const isPdf = document.name.toLowerCase().endsWith('.pdf');
+  const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(document.name);
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-[fadeIn_0.3s_ease-out]">
-      <div className="w-full max-w-4xl h-[90vh] flex flex-col bg-legal-900 border border-legal-gold/30 rounded-xl shadow-2xl overflow-hidden relative">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-[fadeIn_0.3s_ease-out]">
+      <div className="w-full max-w-5xl h-[90vh] flex flex-col bg-legal-900 border border-legal-gold/30 rounded-xl shadow-2xl overflow-hidden relative">
         <div className="p-4 bg-legal-800 border-b border-white/10 flex justify-between items-center shrink-0">
            <div>
               <h3 className="text-legal-gold font-serif font-bold text-lg">{document.name}</h3>
               <p className="text-xs text-slate-400">Expediente: {caseTitle} • {document.size}</p>
            </div>
-           <button 
-              onClick={onClose} 
-              className="w-8 h-8 rounded-full bg-slate-700 hover:bg-red-600 text-white flex items-center justify-center transition-colors"
-           >
-              ✕
-           </button>
+           <div className="flex gap-2">
+             {document.url && (
+               <a 
+                 href={document.url} 
+                 target="_blank" 
+                 rel="noreferrer"
+                 className="px-3 py-1 bg-legal-700 hover:bg-legal-600 text-white text-xs rounded transition-colors flex items-center"
+               >
+                 Descargar
+               </a>
+             )}
+             <button 
+                onClick={onClose} 
+                className="w-8 h-8 rounded-full bg-slate-700 hover:bg-red-600 text-white flex items-center justify-center transition-colors"
+             >
+                ✕
+             </button>
+           </div>
         </div>
-        <div className="flex-1 overflow-y-auto bg-[#334155] p-8 flex items-center justify-center">
-             <div className="text-center">
-                 <p className="text-white text-lg mb-4">Visualización Simulada (Demo)</p>
-                 <p className="text-slate-300">{document.type}</p>
-             </div>
+        <div className="flex-1 bg-[#1e293b] flex items-center justify-center overflow-hidden">
+             {document.url ? (
+               <>
+                 {isPdf ? (
+                   <iframe 
+                     src={document.url} 
+                     className="w-full h-full border-none" 
+                     title="PDF Viewer"
+                   />
+                 ) : isImage ? (
+                   <img 
+                     src={document.url} 
+                     alt={document.name} 
+                     className="max-w-full max-h-full object-contain"
+                   />
+                 ) : (
+                   <div className="text-center p-10">
+                     <div className="mb-4 text-6xl">📄</div>
+                     <p className="text-white text-lg mb-4">Vista previa no disponible para este formato.</p>
+                     <a 
+                       href={document.url} 
+                       target="_blank" 
+                       rel="noreferrer"
+                       className="text-legal-gold hover:underline"
+                     >
+                       Click aquí para descargar y ver el archivo
+                     </a>
+                   </div>
+                 )}
+               </>
+             ) : (
+               <div className="text-center text-red-400">
+                 <p>Error: URL del documento no encontrada.</p>
+               </div>
+             )}
         </div>
       </div>
     </div>
@@ -492,7 +538,8 @@ function App() {
     try {
         const { error } = await dbAuth.signUp(email, password, name);
         if (error) throw error;
-        setLoginError("Registro exitoso. Inicia sesión.");
+        // Since email confirmation is usually required, we inform user
+        setLoginError("Registro iniciado. Por favor revisa tu correo para confirmar tu cuenta antes de iniciar sesión.");
         setIsRegistering(false);
     } catch (err: any) {
         setLoginError(err.message || "Error al registrarse");
@@ -518,9 +565,6 @@ function App() {
   };
 
   const addUser = async (userData: { name: string, email: string, role: UserRole }) => {
-      // In this demo, admin creates user purely via UI list mock, 
-      // but in reality you'd need an Edge Function to create Auth users from Admin panel.
-      // For now, we just update the visual list or throw alert
       alert("Para agregar usuarios reales, pídales que se registren o use el panel de Supabase.");
   };
 
@@ -532,7 +576,6 @@ function App() {
   };
 
   const deleteUser = (id: string) => {
-      // Deleting users requires Admin API interaction usually blocked from client
       alert("La eliminación de usuarios debe hacerse desde el panel de Supabase por seguridad.");
   };
 
@@ -540,7 +583,6 @@ function App() {
     try {
         const newCase = await dbCases.create(caseData);
         if (newCase) {
-             // Refresh list to get proper structure
              const list = await dbCases.getAll();
              setCases(list);
         }
@@ -559,7 +601,7 @@ function App() {
     if (e.target.files && e.target.files[0]) {
         try {
             await dbDocuments.upload(caseId, e.target.files[0], type);
-            // Refresh cases to see new doc
+            // Refresh cases to see new doc with URL
             const list = await dbCases.getAll();
             setCases(list);
         } catch (err) { console.error(err); }
