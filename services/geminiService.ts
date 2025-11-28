@@ -1,28 +1,13 @@
 import { GoogleGenAI } from "@google/genai";
 
-// Initialize Gemini Client
-// IMPORTANT: API Key comes from process.env.API_KEY as per instructions
-const apiKey = process.env.API_KEY;
-
-// We wrap initialization in a getter or check to handle potential missing keys gracefully in UI
-const getAiClient = () => {
-  if (!apiKey) {
-    console.warn("API Key for Gemini is missing. AI features will be disabled.");
-    return null;
-  }
-  return new GoogleGenAI({ apiKey });
-};
-
 /**
  * Summarizes a legal document text or provides advice based on a query.
  */
 export const getLegalAdvice = async (query: string, context?: string): Promise<string> => {
-  const ai = getAiClient();
-  if (!ai) return "Sistema de IA no configurado. Contacte al administrador.";
+  // The API key must be obtained exclusively from the environment variable process.env.API_KEY.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   try {
-    const model = ai.models;
-    
     // Using gemini-2.5-flash for fast, efficient text tasks
     const systemInstruction = `
       Eres un asistente legal experto y formal llamado 'LexAI'. 
@@ -36,7 +21,7 @@ export const getLegalAdvice = async (query: string, context?: string): Promise<s
       ? `Contexto del caso: ${context}\n\nConsulta del usuario: ${query}` 
       : query;
 
-    const response = await model.generateContent({
+    const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
       config: {

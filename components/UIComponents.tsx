@@ -4,7 +4,8 @@ import React from 'react';
 export const Card3D: React.FC<{ 
   children?: React.ReactNode, 
   className?: string, 
-  onClick?: () => void 
+  onClick?: () => void,
+  key?: string | number // Allow key prop explicit typing
 }> = ({ 
   children, 
   className = '', 
@@ -69,7 +70,7 @@ export const Button3D = ({
   );
 };
 
-// Input Field with 3D inset look
+// Input Field with 3D inset look - Hardened against Extensions
 export const Input3D = ({ 
   label, 
   type = "text", 
@@ -98,6 +99,11 @@ export const Input3D = ({
           onChange={onChange}
           placeholder={placeholder}
           disabled={disabled}
+          // Attributes to prevent extensions from messing with the DOM
+          spellCheck={false}
+          data-lpignore="true" // Ignores LastPass
+          autoComplete="off" // Reduces browser interference
+          data-form-type="other" // Generic hint
           className={`
             w-full 
             bg-[#0a0f1c] 
