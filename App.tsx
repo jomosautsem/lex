@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { MOCK_USERS, MOCK_CASES, APP_NAME } from './constants';
-import { User, UserRole, Case, DocType, Document, ViewState } from './types';
+import { MOCK_USERS, MOCK_CASES, MOCK_EVENTS, APP_NAME } from './constants';
+import { User, UserRole, Case, DocType, Document, ViewState, LegalEvent, EventType } from './types';
 import { Button3D, Input3D, Card3D, Badge, Select3D } from './components/UIComponents';
 import { LegalAssistant } from './components/LegalAssistant';
 
@@ -172,6 +172,16 @@ const Sidebar = ({
       >
         Expedientes
       </Button3D>
+
+      {currentUser?.role !== UserRole.CLIENT && (
+        <Button3D 
+          variant="ghost" 
+          className="w-full text-left"
+          onClick={() => setViewState({ currentView: 'CALENDAR' })}
+        >
+          Agenda Procesal
+        </Button3D>
+      )}
     </nav>
 
     <div className="p-4 border-t border-slate-800">
@@ -247,6 +257,147 @@ const LoginView = ({
       </div>
   </div>
 );
+
+const CalendarView = ({
+  events,
+  cases,
+  onAddEvent
+}: {
+  events: LegalEvent[],
+  cases: Case[],
+  onAddEvent: (evt: { title: string, date: string, time: string, type: EventType, caseId: string, description: string }) => void
+}) => {
+  const [newEvent, setNewEvent] = useState({ title: '', date: '', time: '', type: EventType.AUDIENCIA, caseId: '', description: '' });
+
+  // Helper for Urgency Colors
+  const getEventStatusColor = (dateStr: string) => {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const eventDate = new Date(dateStr);
+    const diffTime = eventDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+
+    if (diffDays < 0) return "border-l-slate-500 bg-slate-900/50 opacity-60"; // Past
+    if (diffDays <= 2) return "border-l-red-500 bg-red-900/10 shadow-[0_0_15px_rgba(220,38,38,0.1)]"; // Urgent
+    if (diffDays <= 7) return "border-l-yellow-500 bg-yellow-900/10"; // Warning
+    return "border-l-emerald-500 bg-emerald-900/10"; // Safe
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if(newEvent.title && newEvent.date && newEvent.time) {
+      onAddEvent(newEvent);
+      setNewEvent({ title: '', date: '', time: '', type: EventType.AUDIENCIA, caseId: '', description: '' });
+    }
+  };
+
+  // Sort events by date
+  const sortedEvents = [...events].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  return (
+    <div className="space-y-8 animate-[fadeIn_0.5s_ease-out]">
+       <div className="flex justify-between items-end pb-4 border-b border-white/10">
+        <div>
+          <h2 className="text-2xl font-serif text-white">Agenda Procesal</h2>
+          <p className="text-slate-400 text-sm mt-1">Control de Términos, Audiencias y Vencimientos.</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Form Column */}
+        <div className="lg:col-span-1">
+           <Card3D className="sticky top-8 border-l-4 border-l-blue-500">
+              <h3 className="font-bold text-white mb-4">Agendar Evento</h3>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                 <Input3D 
+                    label="Título del Evento" 
+                    value={newEvent.title} 
+                    onChange={e => setNewEvent({...newEvent, title: e.target.value})}
+                    placeholder="Ej. Audiencia Previa"
+                 />
+                 <div className="grid grid-cols-2 gap-2">
+                    <Input3D 
+                        label="Fecha" 
+                        type="date"
+                        value={newEvent.date} 
+                        onChange={e => setNewEvent({...newEvent, date: e.target.value})}
+                    />
+                    <Input3D 
+                        label="Hora" 
+                        type="time"
+                        value={newEvent.time} 
+                        onChange={e => setNewEvent({...newEvent, time: e.target.value})}
+                    />
+                 </div>
+                 <Select3D 
+                    label="Tipo de Evento"
+                    value={newEvent.type}
+                    onChange={e => setNewEvent({...newEvent, type: e.target.value as EventType})}
+                    options={[
+                        { label: 'Audiencia', value: EventType.AUDIENCIA },
+                        { label: 'Vencimiento', value: EventType.TERMINO },
+                        { label: 'Reunión', value: EventType.REUNION },
+                        { label: 'Otro', value: EventType.OTRO },
+                    ]}
+                 />
+                 <Select3D 
+                    label="Vincular a Expediente (Opcional)"
+                    value={newEvent.caseId}
+                    onChange={e => setNewEvent({...newEvent, caseId: e.target.value})}
+                    options={[
+                        { label: 'Ninguno / General', value: '' },
+                        ...cases.map(c => ({ label: c.title, value: c.id }))
+                    ]}
+                 />
+                 <Input3D 
+                    label="Descripción / Notas" 
+                    value={newEvent.description} 
+                    onChange={e => setNewEvent({...newEvent, description: e.target.value})}
+                 />
+                 <Button3D type="submit" className="w-full">Guardar en Agenda</Button3D>
+              </form>
+           </Card3D>
+        </div>
+
+        {/* Timeline Column */}
+        <div className="lg:col-span-2 relative">
+           <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-slate-800"></div>
+           <div className="space-y-6">
+              {sortedEvents.map(evt => (
+                  <div key={evt.id} className="relative pl-12 group">
+                      {/* Dot on Timeline */}
+                      <div className="absolute left-[11px] top-6 w-3 h-3 rounded-full bg-legal-gold border-2 border-slate-900 z-10 group-hover:scale-125 transition-transform"></div>
+                      
+                      <Card3D className={`border-l-4 ${getEventStatusColor(evt.date)}`}>
+                          <div className="flex justify-between items-start">
+                             <div>
+                                <span className="text-xs font-bold text-legal-gold uppercase tracking-wider mb-1 block">
+                                    {evt.type} • {evt.time} hrs
+                                </span>
+                                <h4 className="text-lg font-bold text-white">{evt.title}</h4>
+                                <p className="text-sm text-slate-400 mt-1">{evt.description}</p>
+                                {evt.caseId && (
+                                    <div className="mt-3 inline-block px-2 py-1 bg-slate-800 rounded text-xs text-slate-300 border border-slate-700">
+                                        Exp: {cases.find(c => c.id === evt.caseId)?.title || 'Caso no encontrado'}
+                                    </div>
+                                )}
+                             </div>
+                             <div className="text-center bg-black/20 p-2 rounded border border-white/5">
+                                 <span className="block text-xl font-serif font-bold text-white">{new Date(evt.date).getDate()}</span>
+                                 <span className="block text-xs uppercase text-slate-500">
+                                     {new Date(evt.date).toLocaleString('es-ES', { month: 'short' })}
+                                 </span>
+                             </div>
+                          </div>
+                      </Card3D>
+                  </div>
+              ))}
+           </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const UsersView = ({ 
   users, 
@@ -587,6 +738,7 @@ function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>(MOCK_USERS);
   const [cases, setCases] = useState<Case[]>(MOCK_CASES);
+  const [events, setEvents] = useState<LegalEvent[]>(MOCK_EVENTS);
   
   // Login State
   const [email, setEmail] = useState('');
@@ -672,6 +824,14 @@ function App() {
     setCases(prev => [...prev, newCase]);
   };
 
+  const handleAddEvent = (evtData: { title: string, date: string, time: string, type: EventType, caseId: string, description: string }) => {
+    const newEvent: LegalEvent = {
+        id: `e${Date.now()}`,
+        ...evtData
+    };
+    setEvents(prev => [...prev, newEvent]);
+  };
+
   const handleUploadDocument = (caseId: string, e: React.ChangeEvent<HTMLInputElement>, type: DocType) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -734,9 +894,16 @@ function App() {
                       <h3 className="text-slate-400 text-xs uppercase tracking-widest mb-2">Clientes Activos</h3>
                       <p className="text-4xl font-serif text-white">{users.filter(u => u.role === UserRole.CLIENT && u.isActive).length}</p>
                    </Card3D>
-                   <Card3D className="bg-gradient-to-br from-emerald-900/40 to-slate-900/40">
-                      <h3 className="text-slate-400 text-xs uppercase tracking-widest mb-2">Documentos Totales</h3>
-                      <p className="text-4xl font-serif text-white">{cases.reduce((acc, c) => acc + c.documents.length, 0)}</p>
+                   <Card3D className="bg-gradient-to-br from-red-900/40 to-slate-900/40">
+                      <h3 className="text-slate-400 text-xs uppercase tracking-widest mb-2">Eventos Próximos (7 días)</h3>
+                      <p className="text-4xl font-serif text-white">
+                        {events.filter(e => {
+                            const today = new Date();
+                            const evtDate = new Date(e.date);
+                            const diff = Math.ceil((evtDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
+                            return diff >= 0 && diff <= 7;
+                        }).length}
+                      </p>
                    </Card3D>
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -756,6 +923,34 @@ function App() {
                            <span>Usuario cliente activado: <strong>Juan Perez</strong></span>
                         </li>
                       </ul>
+                   </Card3D>
+
+                   {/* Agenda Widget */}
+                   <Card3D className="border-t-2 border-t-red-500">
+                      <div className="flex justify-between items-center mb-4">
+                        <h3 className="font-bold text-white">Próximos Vencimientos</h3>
+                        <button onClick={() => setViewState({currentView: 'CALENDAR'})} className="text-xs text-legal-gold hover:underline">Ver Todo</button>
+                      </div>
+                      <div className="space-y-3">
+                        {events
+                            .filter(e => new Date(e.date) >= new Date())
+                            .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+                            .slice(0, 3)
+                            .map(e => (
+                                <div key={e.id} className="flex gap-3 p-2 rounded bg-white/5 border border-white/5">
+                                    <div className="text-center min-w-[3rem] px-1 py-1 bg-black/40 rounded">
+                                        <div className="text-xs font-bold text-red-400">{new Date(e.date).getDate()}</div>
+                                        <div className="text-[10px] uppercase">{new Date(e.date).toLocaleString('es-ES', { month: 'short'})}</div>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-bold text-slate-200">{e.title}</p>
+                                        <p className="text-xs text-slate-500">{e.type} • {e.time}</p>
+                                    </div>
+                                </div>
+                            ))
+                        }
+                        {events.length === 0 && <p className="text-xs text-slate-500">No hay eventos próximos.</p>}
+                      </div>
                    </Card3D>
                 </div>
              </div>
@@ -777,6 +972,13 @@ function App() {
               users={users} 
               handleAddCase={handleAddCase} 
               handleUploadDocument={handleUploadDocument} 
+            />
+          )}
+          {viewState.currentView === 'CALENDAR' && (
+            <CalendarView 
+                events={events}
+                cases={cases}
+                onAddEvent={handleAddEvent}
             />
           )}
         </div>

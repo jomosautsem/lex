@@ -1,4 +1,4 @@
-import { User, UserRole, Case, DocType } from './types';
+import { User, UserRole, Case, DocType, LegalEvent, EventType } from './types';
 
 export const MOCK_USERS: User[] = [
   {
@@ -58,6 +58,36 @@ export const MOCK_CASES: Case[] = [
     documents: [
         { id: 'd3', name: 'CURP_Cliente.pdf', type: DocType.CURP, uploadDate: '2023-11-01', size: '0.5 MB' }
     ]
+  }
+];
+
+export const MOCK_EVENTS: LegalEvent[] = [
+  {
+    id: 'e1',
+    title: 'Audiencia de Pruebas',
+    date: new Date().toISOString().split('T')[0], // Today
+    time: '10:00',
+    type: EventType.AUDIENCIA,
+    caseId: 'c1',
+    description: 'Presentación de testigos en juzgado 5to.'
+  },
+  {
+    id: 'e2',
+    title: 'Vencimiento Contestación',
+    date: new Date(Date.now() + 86400000).toISOString().split('T')[0], // Tomorrow
+    time: '23:59',
+    type: EventType.TERMINO,
+    caseId: 'c2',
+    description: 'Último día para presentar contestación de demanda.'
+  },
+  {
+    id: 'e3',
+    title: 'Reunión Mensual',
+    date: new Date(Date.now() + 432000000).toISOString().split('T')[0], // +5 days
+    time: '16:00',
+    type: EventType.REUNION,
+    caseId: '',
+    description: 'Revisión de estatus con el cliente Juan Perez.'
   }
 ];
 

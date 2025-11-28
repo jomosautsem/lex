@@ -39,7 +39,24 @@ export interface Case {
   createdAt: string;
 }
 
+export enum EventType {
+  AUDIENCIA = 'Audiencia',
+  TERMINO = 'Vencimiento de Término',
+  REUNION = 'Reunión con Cliente',
+  OTRO = 'Otro'
+}
+
+export interface LegalEvent {
+  id: string;
+  title: string;
+  date: string; // YYYY-MM-DD
+  time: string; // HH:MM
+  type: EventType;
+  caseId: string; // Optional link to a case
+  description: string;
+}
+
 export interface ViewState {
-  currentView: 'LOGIN' | 'DASHBOARD' | 'USERS' | 'CASES' | 'SETTINGS';
+  currentView: 'LOGIN' | 'DASHBOARD' | 'USERS' | 'CASES' | 'CALENDAR' | 'SETTINGS';
   selectedCaseId?: string;
 }
