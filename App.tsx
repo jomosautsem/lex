@@ -1,10 +1,12 @@
+
 import React, { useState, useEffect } from 'react';
-import { MOCK_USERS, MOCK_CASES, MOCK_EVENTS, APP_NAME } from './constants';
+import { APP_NAME } from './constants';
 import { User, UserRole, Case, DocType, Document, ViewState, LegalEvent, EventType } from './types';
 import { Button3D, Input3D, Card3D, Badge, Select3D } from './components/UIComponents';
 import { LegalAssistant } from './components/LegalAssistant';
+import { dbAuth, dbCases, dbDocuments, dbEvents, dbEvents as dbAgenda } from './services/dbService';
 
-// --- SUB-COMPONENTS DEFINED OUTSIDE APP TO PREVENT RE-RENDER FOCUS LOSS ---
+// --- SUB-COMPONENTS ---
 
 const FileViewerModal = ({ 
   document, 
@@ -17,112 +19,26 @@ const FileViewerModal = ({
 }) => {
   if (!document) return null;
 
-  // Simulate content based on file type
-  const renderContent = () => {
-    switch (document.type) {
-      case DocType.DEMANDA:
-        return (
-          <div className="bg-white text-black p-8 shadow-lg min-h-[600px] font-serif text-sm leading-relaxed max-w-3xl mx-auto">
-            <div className="text-right mb-8">
-              <p><strong>ASUNTO:</strong> {document.name.replace('.pdf', '')}</p>
-              <p><strong>EXPEDIENTE:</strong> {Math.floor(Math.random() * 1000)}/2023</p>
-            </div>
-            <p className="font-bold mb-4">C. JUEZ DE LO CIVIL EN TURNO</p>
-            <p className="mb-4 text-justify">
-              Por medio del presente escrito, y con fundamento en los artículos aplicables del Código Civil y de Procedimientos Civiles, 
-              comparezco para exponer los siguientes hechos y consideraciones de derecho...
-            </p>
-            <p className="mb-4 text-justify">
-              I. Que con fecha reciente se suscitaron los eventos descritos en el anexo uno...
-            </p>
-            <div className="my-8 border-t border-black w-1/2 mx-auto" />
-            <p className="text-center italic">Firma del Interesado</p>
-          </div>
-        );
-      case DocType.CURP:
-        return (
-          <div className="bg-white p-8 min-h-[400px] flex items-center justify-center">
-             <div className="border-4 border-green-600 p-4 w-full max-w-2xl rounded-lg bg-green-50 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-green-200 rounded-full blur-3xl opacity-50"></div>
-                <h2 className="text-center font-bold text-xl text-green-800 mb-4">CLAVE ÚNICA DE REGISTRO DE POBLACIÓN</h2>
-                <div className="grid grid-cols-3 gap-4 border border-green-600 p-4 bg-white/80 backdrop-blur">
-                   <div className="col-span-1 bg-slate-200 h-32 flex items-center justify-center text-xs text-slate-500">FOTO</div>
-                   <div className="col-span-2 space-y-2">
-                      <div className="h-4 bg-slate-200 w-3/4 rounded"></div>
-                      <div className="h-4 bg-slate-200 w-1/2 rounded"></div>
-                      <div className="h-8 bg-slate-200 w-full rounded mt-4"></div>
-                   </div>
-                </div>
-                <div className="mt-4 text-center text-xs text-green-800 font-mono">
-                  {document.name} - DOCUMENTO OFICIAL
-                </div>
-             </div>
-          </div>
-        );
-      case DocType.ACTA_NACIMIENTO:
-        return (
-           <div className="bg-[#fdfbf7] p-8 min-h-[600px] flex flex-col items-center border-8 border-double border-legal-900">
-              <div className="w-20 h-20 rounded-full border border-black flex items-center justify-center mb-4">
-                 <span className="font-serif text-3xl">MX</span>
-              </div>
-              <h1 className="font-serif text-2xl font-bold mb-2 uppercase tracking-widest text-center">Estados Unidos Mexicanos</h1>
-              <h2 className="font-serif text-lg mb-8 uppercase text-center border-b border-black pb-2 w-full">Acta de Nacimiento</h2>
-              <div className="w-full grid grid-cols-2 gap-8 font-serif text-sm">
-                 <div className="space-y-4">
-                    <p><span className="font-bold block">Entidad de Registro:</span> CIUDAD DE MÉXICO</p>
-                    <p><span className="font-bold block">Municipio de Registro:</span> BENITO JUÁREZ</p>
-                    <p><span className="font-bold block">Fecha de Registro:</span> {document.uploadDate}</p>
-                 </div>
-                 <div className="space-y-4">
-                    <p><span className="font-bold block">Nombre:</span> PERSONA REGISTRADA</p>
-                    <p><span className="font-bold block">Sexo:</span> INDISTINTO</p>
-                    <p><span className="font-bold block">CRIP:</span> 0909090909</p>
-                 </div>
-              </div>
-              <div className="mt-auto pt-10 w-full flex justify-around">
-                 <div className="border-t border-black w-32"></div>
-                 <div className="border-t border-black w-32"></div>
-              </div>
-           </div>
-        );
-      default:
-        return (
-          <div className="bg-slate-800 p-8 min-h-[400px] flex flex-col items-center justify-center text-slate-400">
-             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor" className="w-32 h-32 mb-4 text-legal-gold">
-               <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-             </svg>
-             <p className="text-xl">Vista previa no disponible para este formato.</p>
-             <p className="text-sm mt-2">{document.name}</p>
-          </div>
-        );
-    }
-  };
-
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-[fadeIn_0.3s_ease-out]">
       <div className="w-full max-w-4xl h-[90vh] flex flex-col bg-legal-900 border border-legal-gold/30 rounded-xl shadow-2xl overflow-hidden relative">
-        {/* Header */}
         <div className="p-4 bg-legal-800 border-b border-white/10 flex justify-between items-center shrink-0">
            <div>
               <h3 className="text-legal-gold font-serif font-bold text-lg">{document.name}</h3>
               <p className="text-xs text-slate-400">Expediente: {caseTitle} • {document.size}</p>
            </div>
-           <div className="flex gap-2">
-             <Button3D variant="ghost" onClick={() => alert('Descarga iniciada...')} className="text-xs">
-                ⬇ Descargar
-             </Button3D>
-             <button 
-                onClick={onClose} 
-                className="w-8 h-8 rounded-full bg-slate-700 hover:bg-red-600 text-white flex items-center justify-center transition-colors"
-             >
-                ✕
-             </button>
-           </div>
+           <button 
+              onClick={onClose} 
+              className="w-8 h-8 rounded-full bg-slate-700 hover:bg-red-600 text-white flex items-center justify-center transition-colors"
+           >
+              ✕
+           </button>
         </div>
-
-        {/* Content View */}
-        <div className="flex-1 overflow-y-auto bg-[#334155] p-8 relative">
-           {renderContent()}
+        <div className="flex-1 overflow-y-auto bg-[#334155] p-8 flex items-center justify-center">
+             <div className="text-center">
+                 <p className="text-white text-lg mb-4">Visualización Simulada (Demo)</p>
+                 <p className="text-slate-300">{document.type}</p>
+             </div>
         </div>
       </div>
     </div>
@@ -146,39 +62,23 @@ const Sidebar = ({
     
     <nav className="flex-1 p-4 space-y-2">
       {currentUser?.role !== UserRole.CLIENT && (
-         <Button3D 
-          variant="ghost" 
-          className="w-full text-left justify-start"
-          onClick={() => setViewState({ currentView: 'DASHBOARD' })}
-         >
+         <Button3D variant="ghost" className="w-full text-left justify-start" onClick={() => setViewState({ currentView: 'DASHBOARD' })}>
           Dashboard
          </Button3D>
       )}
       
       {currentUser?.role === UserRole.ADMIN && (
-        <Button3D 
-          variant="ghost" 
-          className="w-full text-left"
-          onClick={() => setViewState({ currentView: 'USERS' })}
-        >
+        <Button3D variant="ghost" className="w-full text-left" onClick={() => setViewState({ currentView: 'USERS' })}>
           Usuarios
         </Button3D>
       )}
 
-      <Button3D 
-        variant="ghost" 
-        className="w-full text-left"
-        onClick={() => setViewState({ currentView: 'CASES' })}
-      >
+      <Button3D variant="ghost" className="w-full text-left" onClick={() => setViewState({ currentView: 'CASES' })}>
         Expedientes
       </Button3D>
 
       {currentUser?.role !== UserRole.CLIENT && (
-        <Button3D 
-          variant="ghost" 
-          className="w-full text-left"
-          onClick={() => setViewState({ currentView: 'CALENDAR' })}
-        >
+        <Button3D variant="ghost" className="w-full text-left" onClick={() => setViewState({ currentView: 'CALENDAR' })}>
           Agenda Procesal
         </Button3D>
       )}
@@ -188,7 +88,7 @@ const Sidebar = ({
       <div className="flex items-center gap-3 mb-4">
         <img src={currentUser?.avatarUrl} alt="avatar" className="w-10 h-10 rounded-full border border-legal-gold" />
         <div>
-          <p className="text-sm font-bold text-slate-200">{currentUser?.name}</p>
+          <p className="text-sm font-bold text-slate-200 truncate w-32">{currentUser?.name}</p>
           <p className="text-xs text-legal-gold">{currentUser?.role}</p>
         </div>
       </div>
@@ -198,22 +98,27 @@ const Sidebar = ({
 );
 
 const LoginView = ({ 
-  email, 
-  setEmail, 
-  password, 
-  setPassword, 
-  loginError, 
-  handleLogin 
+  email, setEmail, 
+  password, setPassword, 
+  name, setName,
+  loginError,
+  setLoginError,
+  handleLogin,
+  handleRegister,
+  isRegistering,
+  setIsRegistering
 }: {
-  email: string, 
-  setEmail: (val: string) => void, 
-  password: string, 
-  setPassword: (val: string) => void,
+  email: string, setEmail: (val: string) => void, 
+  password: string, setPassword: (val: string) => void,
+  name: string, setName: (val: string) => void,
   loginError: string,
-  handleLogin: (e: React.FormEvent) => void
+  setLoginError: (val: string) => void,
+  handleLogin: (e: React.FormEvent) => void,
+  handleRegister: (e: React.FormEvent) => void,
+  isRegistering: boolean,
+  setIsRegistering: (val: boolean) => void
 }) => (
   <div className="min-h-screen flex items-center justify-center bg-[#050505] perspective-1000 overflow-hidden relative">
-      {/* Abstract 3D Background Elements */}
       <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-legal-gold/5 rounded-full blur-[100px]" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-blue-900/10 rounded-full blur-[100px]" />
       
@@ -221,14 +126,23 @@ const LoginView = ({
         <Card3D className="border-t-4 border-t-legal-gold">
           <div className="text-center mb-8">
             <h2 className="font-serif text-3xl text-white mb-2">{APP_NAME}</h2>
-            <p className="text-slate-400 text-sm">Acceso Seguro a Expedientes</p>
+            <p className="text-slate-400 text-sm">{isRegistering ? 'Crear Nueva Cuenta' : 'Acceso Seguro a Expedientes'}</p>
           </div>
           
-          <form onSubmit={handleLogin}>
+          <form onSubmit={isRegistering ? handleRegister : handleLogin}>
+            {isRegistering && (
+              <Input3D 
+                label="Nombre Completo" 
+                value={name} 
+                onChange={(e) => setName(e.target.value)} 
+                placeholder="Ej. Lic. Roberto..."
+              />
+            )}
+
             <Input3D 
               label="Correo Electrónico" 
               value={email} 
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => setEmail(e.target.value)} 
               placeholder="usuario@lexcorp.com"
             />
             <Input3D 
@@ -245,7 +159,19 @@ const LoginView = ({
               </div>
             )}
 
-            <Button3D type="submit" className="w-full mt-4">Entrar al Sistema</Button3D>
+            <Button3D type="submit" className="w-full mt-4">
+              {isRegistering ? 'Registrarse' : 'Entrar al Sistema'}
+            </Button3D>
+
+            <div className="mt-4 pt-4 border-t border-white/5 text-center">
+              <button 
+                type="button"
+                onClick={() => { setIsRegistering(!isRegistering); setLoginError(''); }}
+                className="text-sm text-legal-gold hover:underline"
+              >
+                {isRegistering ? '¿Ya tienes cuenta? Inicia sesión' : '¿No tienes cuenta? Regístrate aquí'}
+              </button>
+            </div>
             
             <div className="mt-6 text-center">
               <p className="text-xs text-slate-600">
@@ -265,11 +191,10 @@ const CalendarView = ({
 }: {
   events: LegalEvent[],
   cases: Case[],
-  onAddEvent: (evt: { title: string, date: string, time: string, type: EventType, caseId: string, description: string }) => void
+  onAddEvent: (evt: any) => void
 }) => {
   const [newEvent, setNewEvent] = useState({ title: '', date: '', time: '', type: EventType.AUDIENCIA, caseId: '', description: '' });
 
-  // Helper for Urgency Colors
   const getEventStatusColor = (dateStr: string) => {
     const today = new Date();
     today.setHours(0,0,0,0);
@@ -277,10 +202,10 @@ const CalendarView = ({
     const diffTime = eventDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
 
-    if (diffDays < 0) return "border-l-slate-500 bg-slate-900/50 opacity-60"; // Past
-    if (diffDays <= 2) return "border-l-red-500 bg-red-900/10 shadow-[0_0_15px_rgba(220,38,38,0.1)]"; // Urgent
-    if (diffDays <= 7) return "border-l-yellow-500 bg-yellow-900/10"; // Warning
-    return "border-l-emerald-500 bg-emerald-900/10"; // Safe
+    if (diffDays < 0) return "border-l-slate-500 bg-slate-900/50 opacity-60";
+    if (diffDays <= 2) return "border-l-red-500 bg-red-900/10 shadow-[0_0_15px_rgba(220,38,38,0.1)]";
+    if (diffDays <= 7) return "border-l-yellow-500 bg-yellow-900/10";
+    return "border-l-emerald-500 bg-emerald-900/10";
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -291,7 +216,6 @@ const CalendarView = ({
     }
   };
 
-  // Sort events by date
   const sortedEvents = [...events].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   return (
@@ -302,97 +226,44 @@ const CalendarView = ({
           <p className="text-slate-400 text-sm mt-1">Control de Términos, Audiencias y Vencimientos.</p>
         </div>
       </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Form Column */}
         <div className="lg:col-span-1">
            <Card3D className="sticky top-8 border-l-4 border-l-blue-500">
               <h3 className="font-bold text-white mb-4">Agendar Evento</h3>
               <form onSubmit={handleSubmit} className="space-y-4">
-                 <Input3D 
-                    label="Título del Evento" 
-                    value={newEvent.title} 
-                    onChange={e => setNewEvent({...newEvent, title: e.target.value})}
-                    placeholder="Ej. Audiencia Previa"
-                 />
+                 <Input3D label="Título" value={newEvent.title} onChange={e => setNewEvent({...newEvent, title: e.target.value})} placeholder="Ej. Audiencia" />
                  <div className="grid grid-cols-2 gap-2">
-                    <Input3D 
-                        label="Fecha" 
-                        type="date"
-                        value={newEvent.date} 
-                        onChange={e => setNewEvent({...newEvent, date: e.target.value})}
-                    />
-                    <Input3D 
-                        label="Hora" 
-                        type="time"
-                        value={newEvent.time} 
-                        onChange={e => setNewEvent({...newEvent, time: e.target.value})}
-                    />
+                    <Input3D label="Fecha" type="date" value={newEvent.date} onChange={e => setNewEvent({...newEvent, date: e.target.value})} />
+                    <Input3D label="Hora" type="time" value={newEvent.time} onChange={e => setNewEvent({...newEvent, time: e.target.value})} />
                  </div>
-                 <Select3D 
-                    label="Tipo de Evento"
-                    value={newEvent.type}
-                    onChange={e => setNewEvent({...newEvent, type: e.target.value as EventType})}
-                    options={[
-                        { label: 'Audiencia', value: EventType.AUDIENCIA },
-                        { label: 'Vencimiento', value: EventType.TERMINO },
-                        { label: 'Reunión', value: EventType.REUNION },
-                        { label: 'Otro', value: EventType.OTRO },
-                    ]}
-                 />
-                 <Select3D 
-                    label="Vincular a Expediente (Opcional)"
-                    value={newEvent.caseId}
-                    onChange={e => setNewEvent({...newEvent, caseId: e.target.value})}
-                    options={[
-                        { label: 'Ninguno / General', value: '' },
-                        ...cases.map(c => ({ label: c.title, value: c.id }))
-                    ]}
-                 />
-                 <Input3D 
-                    label="Descripción / Notas" 
-                    value={newEvent.description} 
-                    onChange={e => setNewEvent({...newEvent, description: e.target.value})}
-                 />
-                 <Button3D type="submit" className="w-full">Guardar en Agenda</Button3D>
+                 <Select3D label="Tipo" value={newEvent.type} onChange={e => setNewEvent({...newEvent, type: e.target.value as EventType})} options={[{ label: 'Audiencia', value: EventType.AUDIENCIA }, { label: 'Vencimiento', value: EventType.TERMINO }, { label: 'Reunión', value: EventType.REUNION }, { label: 'Otro', value: EventType.OTRO }]} />
+                 <Select3D label="Vincular a Expediente" value={newEvent.caseId} onChange={e => setNewEvent({...newEvent, caseId: e.target.value})} options={[{ label: 'Ninguno / General', value: '' }, ...cases.map(c => ({ label: c.title, value: c.id }))]} />
+                 <Input3D label="Descripción" value={newEvent.description} onChange={e => setNewEvent({...newEvent, description: e.target.value})} />
+                 <Button3D type="submit" className="w-full">Guardar</Button3D>
               </form>
            </Card3D>
         </div>
-
-        {/* Timeline Column */}
-        <div className="lg:col-span-2 relative">
-           <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-slate-800"></div>
-           <div className="space-y-6">
-              {sortedEvents.map(evt => (
-                  <div key={evt.id} className="relative pl-12 group">
-                      {/* Dot on Timeline */}
-                      <div className="absolute left-[11px] top-6 w-3 h-3 rounded-full bg-legal-gold border-2 border-slate-900 z-10 group-hover:scale-125 transition-transform"></div>
-                      
-                      <Card3D className={`border-l-4 ${getEventStatusColor(evt.date)}`}>
-                          <div className="flex justify-between items-start">
-                             <div>
-                                <span className="text-xs font-bold text-legal-gold uppercase tracking-wider mb-1 block">
-                                    {evt.type} • {evt.time} hrs
-                                </span>
+        <div className="lg:col-span-2 space-y-6 relative">
+            <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-slate-800"></div>
+            {sortedEvents.map(evt => (
+                <div key={evt.id} className="relative pl-12 group">
+                    <div className="absolute left-[11px] top-6 w-3 h-3 rounded-full bg-legal-gold border-2 border-slate-900 z-10 group-hover:scale-125 transition-transform"></div>
+                    <Card3D className={`border-l-4 ${getEventStatusColor(evt.date)}`}>
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <span className="text-xs font-bold text-legal-gold uppercase tracking-wider mb-1 block">{evt.type} • {evt.time} hrs</span>
                                 <h4 className="text-lg font-bold text-white">{evt.title}</h4>
                                 <p className="text-sm text-slate-400 mt-1">{evt.description}</p>
-                                {evt.caseId && (
-                                    <div className="mt-3 inline-block px-2 py-1 bg-slate-800 rounded text-xs text-slate-300 border border-slate-700">
-                                        Exp: {cases.find(c => c.id === evt.caseId)?.title || 'Caso no encontrado'}
-                                    </div>
-                                )}
-                             </div>
-                             <div className="text-center bg-black/20 p-2 rounded border border-white/5">
-                                 <span className="block text-xl font-serif font-bold text-white">{new Date(evt.date).getDate()}</span>
-                                 <span className="block text-xs uppercase text-slate-500">
-                                     {new Date(evt.date).toLocaleString('es-ES', { month: 'short' })}
-                                 </span>
-                             </div>
-                          </div>
-                      </Card3D>
-                  </div>
-              ))}
-           </div>
+                                {evt.caseId && <div className="mt-3 inline-block px-2 py-1 bg-slate-800 rounded text-xs text-slate-300 border border-slate-700">Exp: {cases.find(c => c.id === evt.caseId)?.title || 'Caso'}</div>}
+                            </div>
+                            <div className="text-center bg-black/20 p-2 rounded border border-white/5">
+                                <span className="block text-xl font-serif font-bold text-white">{new Date(evt.date).getDate()}</span>
+                                <span className="block text-xs uppercase text-slate-500">{new Date(evt.date).toLocaleString('es-ES', { month: 'short' })}</span>
+                            </div>
+                        </div>
+                    </Card3D>
+                </div>
+            ))}
         </div>
       </div>
     </div>
@@ -400,20 +271,8 @@ const CalendarView = ({
 };
 
 const UsersView = ({ 
-  users, 
-  currentUser, 
-  toggleUserStatus,
-  onAddUser,
-  onEditUser,
-  onDeleteUser
-}: {
-  users: User[],
-  currentUser: User | null,
-  toggleUserStatus: (id: string) => void,
-  onAddUser: (data: { name: string, email: string, role: UserRole }) => void,
-  onEditUser: (id: string, data: { name: string, email: string, role: UserRole }) => void,
-  onDeleteUser: (id: string) => void
-}) => {
+  users, currentUser, toggleUserStatus, onAddUser, onEditUser, onDeleteUser
+}: any) => {
   const [formState, setFormState] = useState({ name: '', email: '', role: UserRole.CLIENT });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState('');
@@ -421,20 +280,15 @@ const UsersView = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formState.name || !formState.email) return;
-
     if (editingId) {
         onEditUser(editingId, formState);
-        setSuccessMsg('Usuario actualizado correctamente');
+        setSuccessMsg('Usuario actualizado');
     } else {
         onAddUser(formState);
-        setSuccessMsg('Usuario guardado exitosamente');
+        setSuccessMsg('Usuario guardado');
     }
-
-    // Reset Form
     setFormState({ name: '', email: '', role: UserRole.CLIENT });
     setEditingId(null);
-
-    // Clear msg
     setTimeout(() => setSuccessMsg(''), 3000);
   };
 
@@ -444,121 +298,36 @@ const UsersView = ({
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleCancelEdit = () => {
-    setFormState({ name: '', email: '', role: UserRole.CLIENT });
-    setEditingId(null);
-  };
-
-  const handleDeleteClick = (id: string) => {
-    if (window.confirm('¿Está seguro de que desea eliminar este usuario? Esta acción no se puede deshacer.')) {
-        onDeleteUser(id);
-    }
-  };
-
   return (
     <div className="space-y-6 animate-[fadeIn_0.5s_ease-out]">
-      <div className="flex justify-between items-end pb-4 border-b border-white/10">
-        <div>
-          <h2 className="text-2xl font-serif text-white">Administración de Usuarios</h2>
-          <p className="text-slate-400 text-sm mt-1">Gestión de acceso para empleados y clientes.</p>
-        </div>
-      </div>
-
-      {/* User Form (Add/Edit) */}
+      <h2 className="text-2xl font-serif text-white mb-4">Administración de Usuarios</h2>
       <Card3D className={`border-l-4 ${editingId ? 'border-l-blue-500' : 'border-l-legal-gold'}`}>
-        <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-          <span className={`text-xl ${editingId ? 'text-blue-500' : 'text-legal-gold'}`}>
-             {editingId ? '✎' : '+'}
-          </span> 
-          {editingId ? 'Editar Usuario' : 'Registrar Nuevo Usuario'}
-        </h3>
-        
-        {successMsg && (
-          <div className="mb-4 p-3 bg-emerald-900/30 border border-emerald-500/50 rounded-lg flex items-center gap-2 text-emerald-400 animate-pulse">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span className="text-sm font-medium">{successMsg}</span>
-          </div>
-        )}
-
+        <h3 className="text-lg font-bold text-white mb-4">{editingId ? 'Editar Usuario' : 'Registrar Nuevo Usuario'}</h3>
+        {successMsg && <div className="mb-4 text-emerald-400 text-sm">{successMsg}</div>}
         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-          <Input3D 
-            label="Nombre Completo" 
-            name="name" 
-            value={formState.name} 
-            onChange={(e) => setFormState({...formState, name: e.target.value})} 
-            placeholder="Ej. Dr. Roberto..." 
-          />
-          <Input3D 
-            label="Correo Electrónico" 
-            name="email" 
-            value={formState.email} 
-            onChange={(e) => setFormState({...formState, email: e.target.value})} 
-            placeholder="correo@ejemplo.com" 
-          />
-          <Select3D 
-            label="Rol de Usuario" 
-            name="role"
-            value={formState.role} 
-            onChange={(e) => setFormState({...formState, role: e.target.value as UserRole})} 
-            options={[
-              { label: 'Cliente', value: UserRole.CLIENT },
-              { label: 'Empleado', value: UserRole.EMPLOYEE },
-              { label: 'Administrador', value: UserRole.ADMIN },
-            ]}
-          />
+          <Input3D label="Nombre" value={formState.name} onChange={(e) => setFormState({...formState, name: e.target.value})} placeholder="Nombre" />
+          <Input3D label="Email" value={formState.email} onChange={(e) => setFormState({...formState, email: e.target.value})} placeholder="Email" />
+          <Select3D label="Rol" value={formState.role} onChange={(e) => setFormState({...formState, role: e.target.value as UserRole})} options={[{ label: 'Cliente', value: UserRole.CLIENT }, { label: 'Empleado', value: UserRole.EMPLOYEE }, { label: 'Admin', value: UserRole.ADMIN }]} />
           <div className="md:col-span-3 flex justify-end gap-2">
-            {editingId && (
-                <Button3D type="button" variant="ghost" onClick={handleCancelEdit}>Cancelar</Button3D>
-            )}
-            <Button3D type="submit" variant={editingId ? 'primary' : 'primary'}>
-                {editingId ? 'Guardar Cambios' : 'Dar de Alta'}
-            </Button3D>
+            {editingId && <Button3D type="button" variant="ghost" onClick={() => { setFormState({name:'',email:'',role:UserRole.CLIENT}); setEditingId(null); }}>Cancelar</Button3D>}
+            <Button3D type="submit">{editingId ? 'Guardar Cambios' : 'Dar de Alta'}</Button3D>
           </div>
         </form>
       </Card3D>
-
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {users.map(user => (
+        {users.map((user: User) => (
           <Card3D key={user.id} className="flex flex-col items-center text-center">
-             <div className="relative mb-4">
-                <img src={user.avatarUrl} alt={user.name} className="w-20 h-20 rounded-full border-2 border-slate-700 shadow-lg object-cover" />
-                <div className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-slate-900 ${user.isActive ? 'bg-emerald-500' : 'bg-red-500'}`} />
-             </div>
-             <h3 className="font-bold text-lg text-white">{user.name}</h3>
+             <img src={user.avatarUrl} alt={user.name} className="w-16 h-16 rounded-full mb-2" />
+             <h3 className="font-bold text-white">{user.name}</h3>
              <p className="text-slate-400 text-sm mb-4">{user.email}</p>
-             <div className="mb-6">
-               <span className="px-3 py-1 bg-slate-800 rounded-full text-xs font-mono uppercase text-legal-gold border border-legal-gold/20">
-                 {user.role}
-               </span>
-             </div>
-             
+             <span className="px-2 py-1 bg-slate-800 rounded text-xs text-legal-gold mb-4">{user.role}</span>
              {user.id !== currentUser?.id && (
-                <div className="w-full flex flex-col gap-2">
-                    <div className="grid grid-cols-2 gap-2">
-                        <Button3D 
-                            variant="ghost"
-                            className="text-xs border border-white/10"
-                            onClick={() => handleEditClick(user)}
-                        >
-                            ✏️ Editar
-                        </Button3D>
-                        <Button3D 
-                            variant="danger"
-                            className="text-xs"
-                            onClick={() => handleDeleteClick(user.id)}
-                        >
-                            🗑️ Eliminar
-                        </Button3D>
-                    </div>
-                    <Button3D 
-                        variant={user.isActive ? 'danger' : 'success'}
-                        onClick={() => toggleUserStatus(user.id)}
-                        className="w-full text-xs"
-                    >
-                        {user.isActive ? 'Desactivar Acceso' : 'Activar Acceso'}
+                <div className="flex gap-2 w-full justify-center">
+                    <Button3D variant="ghost" className="text-xs" onClick={() => handleEditClick(user)}>Editar</Button3D>
+                    <Button3D variant={user.isActive ? 'danger' : 'success'} onClick={() => toggleUserStatus(user.id)} className="text-xs">
+                        {user.isActive ? 'Desactivar' : 'Activar'}
                     </Button3D>
+                    <Button3D variant="danger" className="text-xs" onClick={() => onDeleteUser(user.id)}>X</Button3D>
                 </div>
              )}
           </Card3D>
@@ -569,313 +338,254 @@ const UsersView = ({
 };
 
 const CasesView = ({ 
-  currentUser, 
-  cases, 
-  users, 
-  handleAddCase, 
-  handleUploadDocument 
-}: {
-  currentUser: User | null,
-  cases: Case[],
-  users: User[],
-  handleAddCase: (data: { title: string, clientId: string, description: string }) => void,
-  handleUploadDocument: (caseId: string, e: React.ChangeEvent<HTMLInputElement>, type: DocType) => void
-}) => {
-  // Local state for the new case form
+  currentUser, cases, users, handleAddCase, handleUploadDocument 
+}: any) => {
   const [newCase, setNewCase] = useState({ title: '', clientId: '', description: '' });
-  
-  // State for Document Viewer
   const [viewingDoc, setViewingDoc] = useState<{ doc: Document, caseTitle: string } | null>(null);
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (newCase.title && newCase.clientId && newCase.description) {
       handleAddCase(newCase);
-      setNewCase({ title: '', clientId: '', description: '' }); // Clear form
+      setNewCase({ title: '', clientId: '', description: '' });
     }
   };
 
-  // Clients only see their own cases
-  const filteredCases = currentUser?.role === UserRole.CLIENT 
-    ? cases.filter(c => c.clientId === currentUser.id)
-    : cases;
-
-  const clients = users.filter(u => u.role === UserRole.CLIENT);
+  const filteredCases = currentUser?.role === UserRole.CLIENT ? cases.filter((c: Case) => c.clientId === currentUser.id) : cases;
 
   return (
     <div className="space-y-8 animate-[fadeIn_0.5s_ease-out]">
-      {viewingDoc && (
-        <FileViewerModal 
-          document={viewingDoc.doc} 
-          caseTitle={viewingDoc.caseTitle} 
-          onClose={() => setViewingDoc(null)} 
-        />
-      )}
-
-      <div className="flex justify-between items-end pb-4 border-b border-white/10">
-        <div>
-          <h2 className="text-2xl font-serif text-white">Expedientes</h2>
-          <p className="text-slate-400 text-sm mt-1">Gestión documental y estado procesal.</p>
-        </div>
-      </div>
-
-      {/* Create Case Form (Only Employee/Admin) */}
+      {viewingDoc && <FileViewerModal document={viewingDoc.doc} caseTitle={viewingDoc.caseTitle} onClose={() => setViewingDoc(null)} />}
+      <h2 className="text-2xl font-serif text-white">Expedientes</h2>
       {currentUser?.role !== UserRole.CLIENT && (
         <Card3D className="mb-8 border-l-4 border-l-legal-gold">
-          <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-            <span className="text-legal-gold text-xl">+</span> Nuevo Expediente
-          </h3>
+          <h3 className="text-lg font-bold text-white mb-4">+ Nuevo Expediente</h3>
           <form onSubmit={onSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input3D 
-              label="Título del Caso" 
-              name="title" 
-              value={newCase.title} 
-              onChange={(e) => setNewCase({ ...newCase, title: e.target.value })} 
-              placeholder="Ej. Divorcio..." 
-            />
-            <Select3D 
-              label="Cliente Asignado" 
-              value={newCase.clientId} 
-              onChange={(e) => setNewCase({ ...newCase, clientId: e.target.value })} 
-              options={[
-                { label: 'Seleccione un cliente', value: '' },
-                ...clients.map(c => ({ label: c.name, value: c.id }))
-              ]}
-              name="clientId"
-            />
-             <div className="md:col-span-2">
-                <Input3D 
-                  label="Descripción" 
-                  name="description" 
-                  value={newCase.description} 
-                  onChange={(e) => setNewCase({ ...newCase, description: e.target.value })} 
-                  placeholder="Detalles iniciales..." 
-                />
-             </div>
-             <div className="md:col-span-2 flex justify-end">
-                <Button3D type="submit">Crear Expediente</Button3D>
-             </div>
+            <Input3D label="Título" value={newCase.title} onChange={(e) => setNewCase({ ...newCase, title: e.target.value })} placeholder="Ej. Divorcio..." />
+            <Select3D label="Cliente" value={newCase.clientId} onChange={(e) => setNewCase({ ...newCase, clientId: e.target.value })} options={[{ label: 'Seleccionar', value: '' }, ...users.filter((u:User) => u.role === UserRole.CLIENT).map((c:User) => ({ label: c.name, value: c.id }))]} />
+             <div className="md:col-span-2"><Input3D label="Descripción" value={newCase.description} onChange={(e) => setNewCase({ ...newCase, description: e.target.value })} placeholder="Detalles..." /></div>
+             <div className="md:col-span-2 flex justify-end"><Button3D type="submit">Crear Expediente</Button3D></div>
           </form>
         </Card3D>
       )}
-
       <div className="grid grid-cols-1 gap-6">
-        {filteredCases.length === 0 ? (
-          <div className="text-center py-20 text-slate-500">No hay expedientes asignados.</div>
-        ) : (
-          filteredCases.map(c => (
+          {filteredCases.map((c: Case) => (
             <Card3D key={c.id} className="group">
-               <div className="flex flex-col md:flex-row justify-between md:items-start gap-4 mb-6">
+               <div className="flex justify-between items-start mb-4">
                   <div>
-                    <h3 className="text-xl font-bold text-white group-hover:text-legal-gold transition-colors">{c.title}</h3>
+                    <h3 className="text-xl font-bold text-white">{c.title}</h3>
                     <p className="text-sm text-slate-400 mt-1">{c.description}</p>
-                    <div className="flex items-center gap-4 mt-3 text-xs text-slate-500">
-                       <span>Creado: {c.createdAt}</span>
-                       <span>ID: {c.id}</span>
-                       <span>Cliente: {users.find(u => u.id === c.clientId)?.name}</span>
-                    </div>
+                    <p className="text-xs text-slate-500 mt-2">Cliente: {users.find((u:User) => u.id === c.clientId)?.name}</p>
                   </div>
-                  <Badge active={c.status === 'En Proceso' || c.status === 'Abierto'} text={c.status} />
+                  <Badge active={c.status === 'Abierto'} text={c.status} />
                </div>
-
-               {/* Documents Section */}
-               <div className="bg-black/20 rounded-lg p-4 border border-white/5">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Documentación Legal</h4>
-                  
+               <div className="bg-black/20 rounded p-4 border border-white/5">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase mb-3">Documentos</h4>
                   <div className="space-y-2">
-                    {c.documents.map(doc => (
-                      <div key={doc.id} className="flex items-center justify-between p-2 hover:bg-white/5 rounded transition-colors">
-                         <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded bg-slate-800 flex items-center justify-center border border-slate-700 text-legal-gold">
-                               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                              </svg>
-                            </div>
-                            <div>
-                              <p className="text-sm text-slate-200 font-medium">{doc.name}</p>
-                              <p className="text-xs text-slate-500">{doc.type} • {doc.size} • {doc.uploadDate}</p>
-                            </div>
-                         </div>
-                         <button 
-                           onClick={() => setViewingDoc({ doc, caseTitle: c.title })}
-                           className="text-legal-accent hover:text-white text-xs font-bold uppercase"
-                         >
-                           Ver
-                         </button>
+                    {c.documents.map((doc: Document) => (
+                      <div key={doc.id} className="flex justify-between p-2 hover:bg-white/5 rounded">
+                         <span className="text-sm text-slate-200">{doc.name} <span className="text-xs text-slate-500">({doc.type})</span></span>
+                         <button onClick={() => setViewingDoc({ doc, caseTitle: c.title })} className="text-legal-accent text-xs uppercase font-bold">Ver</button>
                       </div>
                     ))}
                   </div>
-
-                  {/* Upload Area (Only Employee/Admin) */}
                   {currentUser?.role !== UserRole.CLIENT && (
-                    <div className="mt-4 pt-4 border-t border-white/5 grid grid-cols-1 md:grid-cols-2 gap-4">
-                       <div className="relative overflow-hidden group/upload">
-                          <label className="flex items-center justify-center w-full h-10 border border-dashed border-slate-600 rounded cursor-pointer hover:border-legal-gold hover:bg-legal-gold/10 transition-all">
-                             <span className="text-xs text-slate-400 group-hover/upload:text-legal-gold">Subir Demanda</span>
-                             <input type="file" className="hidden" onChange={(e) => handleUploadDocument(c.id, e, DocType.DEMANDA)} />
-                          </label>
-                       </div>
-                       <div className="relative overflow-hidden group/upload">
-                          <label className="flex items-center justify-center w-full h-10 border border-dashed border-slate-600 rounded cursor-pointer hover:border-legal-gold hover:bg-legal-gold/10 transition-all">
-                             <span className="text-xs text-slate-400 group-hover/upload:text-legal-gold">Subir Documento</span>
-                             <input type="file" className="hidden" onChange={(e) => handleUploadDocument(c.id, e, DocType.OTRO)} />
-                          </label>
-                       </div>
+                    <div className="mt-4 pt-4 border-t border-white/5 grid grid-cols-2 gap-4">
+                       <label className="text-xs text-center border border-dashed border-slate-600 rounded p-2 cursor-pointer hover:border-legal-gold">
+                          Subir Demanda <input type="file" className="hidden" onChange={(e) => handleUploadDocument(c.id, e, DocType.DEMANDA)} />
+                       </label>
+                       <label className="text-xs text-center border border-dashed border-slate-600 rounded p-2 cursor-pointer hover:border-legal-gold">
+                          Subir Otro <input type="file" className="hidden" onChange={(e) => handleUploadDocument(c.id, e, DocType.OTRO)} />
+                       </label>
                     </div>
                   )}
                </div>
             </Card3D>
-          ))
-        )}
+          ))}
       </div>
     </div>
   );
 };
 
-
 function App() {
-  // --- STATE ---
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [users, setUsers] = useState<User[]>(MOCK_USERS);
-  const [cases, setCases] = useState<Case[]>(MOCK_CASES);
-  const [events, setEvents] = useState<LegalEvent[]>(MOCK_EVENTS);
+  const [users, setUsers] = useState<User[]>([]);
+  const [cases, setCases] = useState<Case[]>([]);
+  const [events, setEvents] = useState<LegalEvent[]>([]);
   
-  // Login State
+  // Login/Register State
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState(''); // Mock password check
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [isRegistering, setIsRegistering] = useState(false);
 
-  // View State
   const [viewState, setViewState] = useState<ViewState>({ currentView: 'LOGIN' });
 
-  // --- HANDLERS ---
-
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    const user = users.find(u => u.email === email);
-    
-    if (user) {
-      if (!user.isActive) {
-        setLoginError('Cuenta desactivada. Contacte al administrador.');
-        return;
+  // Initial Load & Auth Check
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await dbAuth.getCurrentSession();
+      if (session) {
+        const profile = await dbAuth.getUserProfile(session.user.id);
+        if (profile) setCurrentUser(profile);
       }
-      // Simple mock authentication success
-      setCurrentUser(user);
-      setViewState({ 
-        currentView: user.role === UserRole.CLIENT ? 'CASES' : 'DASHBOARD' 
-      });
-      setLoginError('');
-    } else {
-      setLoginError('Credenciales inválidas');
+    };
+    checkSession();
+  }, []);
+
+  // Fetch Data when User logs in
+  useEffect(() => {
+    if (currentUser) {
+      setViewState({ currentView: currentUser.role === UserRole.CLIENT ? 'CASES' : 'DASHBOARD' });
+      fetchData();
+    }
+  }, [currentUser]);
+
+  const fetchData = async () => {
+    try {
+      const [uList, cList, eList] = await Promise.all([
+        dbAuth.getAllUsers(),
+        dbCases.getAll(),
+        dbEvents.getAll()
+      ]);
+      setUsers(uList);
+      setCases(cList);
+      setEvents(eList);
+    } catch (error) {
+      console.error("Error fetching data:", error);
     }
   };
 
-  const handleLogout = () => {
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError('');
+    try {
+      const { data, error } = await dbAuth.signIn(email, password);
+      if (error) throw error;
+      if (data.session) {
+        const profile = await dbAuth.getUserProfile(data.session.user.id);
+        if (profile) {
+            if(!profile.isActive) {
+                setLoginError("Cuenta desactivada.");
+                await dbAuth.signOut();
+                return;
+            }
+            setCurrentUser(profile);
+        } else {
+             // Fallback if profile trigger hasn't run yet or failed
+             setLoginError("Perfil no encontrado. Intente nuevamente.");
+        }
+      }
+    } catch (err: any) {
+      setLoginError(err.message || 'Error al iniciar sesión');
+    }
+  };
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError('');
+    if (!name || !email || !password) {
+        setLoginError("Todos los campos son obligatorios");
+        return;
+    }
+    try {
+        const { error } = await dbAuth.signUp(email, password, name);
+        if (error) throw error;
+        setLoginError("Registro exitoso. Inicia sesión.");
+        setIsRegistering(false);
+    } catch (err: any) {
+        setLoginError(err.message || "Error al registrarse");
+    }
+  };
+
+  const handleLogout = async () => {
+    await dbAuth.signOut();
     setCurrentUser(null);
-    setEmail('');
-    setPassword('');
+    setEmail(''); setPassword('');
     setViewState({ currentView: 'LOGIN' });
   };
 
-  const toggleUserStatus = (userId: string) => {
-    setUsers(prev => prev.map(u => {
-      if (u.id === userId) return { ...u, isActive: !u.isActive };
-      return u;
-    }));
+  // --- CRUD WRAPPERS ---
+
+  const toggleUserStatus = async (userId: string) => {
+    const user = users.find(u => u.id === userId);
+    if (!user) return;
+    try {
+        await dbAuth.updateUser(userId, { isActive: !user.isActive });
+        setUsers(prev => prev.map(u => u.id === userId ? { ...u, isActive: !u.isActive } : u));
+    } catch (err) { console.error(err); }
   };
 
-  const addUser = (userData: { name: string, email: string, role: UserRole }) => {
-    const newUser: User = {
-      id: `u${Date.now()}`,
-      name: userData.name,
-      email: userData.email,
-      role: userData.role,
-      isActive: true,
-      avatarUrl: `https://picsum.photos/200/200?random=${Date.now()}`
-    };
-
-    setUsers(prev => [...prev, newUser]);
+  const addUser = async (userData: { name: string, email: string, role: UserRole }) => {
+      // In this demo, admin creates user purely via UI list mock, 
+      // but in reality you'd need an Edge Function to create Auth users from Admin panel.
+      // For now, we just update the visual list or throw alert
+      alert("Para agregar usuarios reales, pídales que se registren o use el panel de Supabase.");
   };
 
-  const editUser = (id: string, userData: { name: string, email: string, role: UserRole }) => {
-    setUsers(prev => prev.map(u => {
-        if (u.id === id) {
-            return { ...u, ...userData };
-        }
-        return u;
-    }));
+  const editUser = async (id: string, userData: any) => {
+      try {
+          await dbAuth.updateUser(id, userData);
+          setUsers(prev => prev.map(u => u.id === id ? { ...u, ...userData } : u));
+      } catch (e) { console.error(e); }
   };
 
   const deleteUser = (id: string) => {
-    setUsers(prev => prev.filter(u => u.id !== id));
+      // Deleting users requires Admin API interaction usually blocked from client
+      alert("La eliminación de usuarios debe hacerse desde el panel de Supabase por seguridad.");
   };
 
-  const handleAddCase = (caseData: { title: string, clientId: string, description: string }) => {
-    const newCase: Case = {
-      id: `c${Date.now()}`,
-      title: caseData.title,
-      clientId: caseData.clientId,
-      status: 'Abierto',
-      description: caseData.description,
-      createdAt: new Date().toISOString().split('T')[0],
-      documents: []
-    };
-
-    setCases(prev => [...prev, newCase]);
-  };
-
-  const handleAddEvent = (evtData: { title: string, date: string, time: string, type: EventType, caseId: string, description: string }) => {
-    const newEvent: LegalEvent = {
-        id: `e${Date.now()}`,
-        ...evtData
-    };
-    setEvents(prev => [...prev, newEvent]);
-  };
-
-  const handleUploadDocument = (caseId: string, e: React.ChangeEvent<HTMLInputElement>, type: DocType) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      const newDoc: Document = {
-        id: `d${Date.now()}`,
-        name: file.name,
-        type: type,
-        uploadDate: new Date().toISOString().split('T')[0],
-        size: `${(file.size / 1024 / 1024).toFixed(2)} MB`
-      };
-
-      setCases(prev => prev.map(c => {
-        if (c.id === caseId) {
-          return { ...c, documents: [...c.documents, newDoc] };
+  const handleAddCase = async (caseData: any) => {
+    try {
+        const newCase = await dbCases.create(caseData);
+        if (newCase) {
+             // Refresh list to get proper structure
+             const list = await dbCases.getAll();
+             setCases(list);
         }
-        return c;
-      }));
+    } catch (e) { console.error(e); }
+  };
+
+  const handleAddEvent = async (evtData: any) => {
+    try {
+        await dbAgenda.create(evtData);
+        const list = await dbAgenda.getAll();
+        setEvents(list);
+    } catch (e) { console.error(e); }
+  };
+
+  const handleUploadDocument = async (caseId: string, e: React.ChangeEvent<HTMLInputElement>, type: DocType) => {
+    if (e.target.files && e.target.files[0]) {
+        try {
+            await dbDocuments.upload(caseId, e.target.files[0], type);
+            // Refresh cases to see new doc
+            const list = await dbCases.getAll();
+            setCases(list);
+        } catch (err) { console.error(err); }
     }
   };
-
-  // --- RENDER ---
 
   if (!currentUser || viewState.currentView === 'LOGIN') {
     return (
       <LoginView 
-        email={email} 
-        setEmail={setEmail} 
-        password={password} 
-        setPassword={setPassword} 
+        email={email} setEmail={setEmail} 
+        password={password} setPassword={setPassword} 
+        name={name} setName={setName}
         loginError={loginError} 
+        setLoginError={setLoginError}
         handleLogin={handleLogin} 
+        handleRegister={handleRegister}
+        isRegistering={isRegistering}
+        setIsRegistering={setIsRegistering}
       />
     );
   }
 
   return (
     <div className="min-h-screen bg-[#050505] text-slate-200 font-sans selection:bg-legal-gold selection:text-black">
-      <Sidebar 
-        currentUser={currentUser} 
-        setViewState={setViewState} 
-        handleLogout={handleLogout} 
-      />
+      <Sidebar currentUser={currentUser} setViewState={setViewState} handleLogout={handleLogout} />
       <main className="ml-64 p-8 min-h-screen relative overflow-hidden">
-        {/* Background Gradients for Main Area */}
         <div className="fixed top-0 left-0 w-full h-full pointer-events-none z-0">
            <div className="absolute top-[-20%] left-[10%] w-[800px] h-[800px] bg-blue-900/5 rounded-full blur-[120px]" />
            <div className="absolute bottom-[-20%] right-[10%] w-[600px] h-[600px] bg-legal-gold/5 rounded-full blur-[100px]" />
@@ -886,105 +596,34 @@ function App() {
              <div className="animate-[fadeIn_0.5s_ease-out]">
                 <h2 className="text-3xl font-serif text-white mb-8">Dashboard General</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                   <Card3D className="bg-gradient-to-br from-blue-900/40 to-slate-900/40">
-                      <h3 className="text-slate-400 text-xs uppercase tracking-widest mb-2">Expedientes Activos</h3>
-                      <p className="text-4xl font-serif text-white">{cases.filter(c => c.status === 'En Proceso').length}</p>
-                   </Card3D>
-                   <Card3D className="bg-gradient-to-br from-purple-900/40 to-slate-900/40">
-                      <h3 className="text-slate-400 text-xs uppercase tracking-widest mb-2">Clientes Activos</h3>
-                      <p className="text-4xl font-serif text-white">{users.filter(u => u.role === UserRole.CLIENT && u.isActive).length}</p>
-                   </Card3D>
-                   <Card3D className="bg-gradient-to-br from-red-900/40 to-slate-900/40">
-                      <h3 className="text-slate-400 text-xs uppercase tracking-widest mb-2">Eventos Próximos (7 días)</h3>
-                      <p className="text-4xl font-serif text-white">
-                        {events.filter(e => {
-                            const today = new Date();
-                            const evtDate = new Date(e.date);
-                            const diff = Math.ceil((evtDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
-                            return diff >= 0 && diff <= 7;
-                        }).length}
-                      </p>
-                   </Card3D>
+                   <Card3D className="bg-gradient-to-br from-blue-900/40 to-slate-900/40"><h3 className="text-slate-400 text-xs uppercase mb-2">Expedientes</h3><p className="text-4xl font-serif text-white">{cases.length}</p></Card3D>
+                   <Card3D className="bg-gradient-to-br from-purple-900/40 to-slate-900/40"><h3 className="text-slate-400 text-xs uppercase mb-2">Clientes</h3><p className="text-4xl font-serif text-white">{users.filter(u => u.role === UserRole.CLIENT).length}</p></Card3D>
+                   <Card3D className="bg-gradient-to-br from-red-900/40 to-slate-900/40"><h3 className="text-slate-400 text-xs uppercase mb-2">Eventos</h3><p className="text-4xl font-serif text-white">{events.length}</p></Card3D>
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                    <Card3D>
-                      <h3 className="font-bold text-white mb-4">Actividad Reciente</h3>
-                      <ul className="space-y-4 text-sm text-slate-400">
-                        <li className="flex items-center gap-2">
-                           <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                           <span>Nuevo expediente creado: <strong>{cases[0]?.title}</strong></span>
-                        </li>
-                        <li className="flex items-center gap-2">
-                           <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                           <span>Documento cargado por <strong>Lic. Ana Martinez</strong></span>
-                        </li>
-                        <li className="flex items-center gap-2">
-                           <div className="w-2 h-2 rounded-full bg-legal-gold"></div>
-                           <span>Usuario cliente activado: <strong>Juan Perez</strong></span>
-                        </li>
-                      </ul>
+                      <h3 className="font-bold text-white mb-4">Actividad</h3>
+                      <p className="text-sm text-slate-400">Sistema conectado a Supabase en tiempo real.</p>
                    </Card3D>
-
-                   {/* Agenda Widget */}
                    <Card3D className="border-t-2 border-t-red-500">
-                      <div className="flex justify-between items-center mb-4">
-                        <h3 className="font-bold text-white">Próximos Vencimientos</h3>
-                        <button onClick={() => setViewState({currentView: 'CALENDAR'})} className="text-xs text-legal-gold hover:underline">Ver Todo</button>
-                      </div>
+                      <div className="flex justify-between items-center mb-4"><h3 className="font-bold text-white">Próximos Vencimientos</h3><button onClick={() => setViewState({currentView: 'CALENDAR'})} className="text-xs text-legal-gold hover:underline">Ver Agenda</button></div>
                       <div className="space-y-3">
-                        {events
-                            .filter(e => new Date(e.date) >= new Date())
-                            .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-                            .slice(0, 3)
-                            .map(e => (
+                        {events.slice(0, 3).map(e => (
                                 <div key={e.id} className="flex gap-3 p-2 rounded bg-white/5 border border-white/5">
-                                    <div className="text-center min-w-[3rem] px-1 py-1 bg-black/40 rounded">
-                                        <div className="text-xs font-bold text-red-400">{new Date(e.date).getDate()}</div>
-                                        <div className="text-[10px] uppercase">{new Date(e.date).toLocaleString('es-ES', { month: 'short'})}</div>
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-bold text-slate-200">{e.title}</p>
-                                        <p className="text-xs text-slate-500">{e.type} • {e.time}</p>
-                                    </div>
+                                    <div className="text-center min-w-[3rem] px-1 py-1 bg-black/40 rounded"><div className="text-xs font-bold text-red-400">{new Date(e.date).getDate()}</div></div>
+                                    <div><p className="text-sm font-bold text-slate-200">{e.title}</p></div>
                                 </div>
-                            ))
-                        }
-                        {events.length === 0 && <p className="text-xs text-slate-500">No hay eventos próximos.</p>}
+                        ))}
                       </div>
                    </Card3D>
                 </div>
              </div>
           )}
-          {viewState.currentView === 'USERS' && (
-            <UsersView 
-              users={users} 
-              currentUser={currentUser} 
-              toggleUserStatus={toggleUserStatus}
-              onAddUser={addUser}
-              onEditUser={editUser}
-              onDeleteUser={deleteUser}
-            />
-          )}
-          {viewState.currentView === 'CASES' && (
-            <CasesView 
-              currentUser={currentUser} 
-              cases={cases} 
-              users={users} 
-              handleAddCase={handleAddCase} 
-              handleUploadDocument={handleUploadDocument} 
-            />
-          )}
-          {viewState.currentView === 'CALENDAR' && (
-            <CalendarView 
-                events={events}
-                cases={cases}
-                onAddEvent={handleAddEvent}
-            />
-          )}
+          {viewState.currentView === 'USERS' && <UsersView users={users} currentUser={currentUser} toggleUserStatus={toggleUserStatus} onAddUser={addUser} onEditUser={editUser} onDeleteUser={deleteUser} />}
+          {viewState.currentView === 'CASES' && <CasesView currentUser={currentUser} cases={cases} users={users} handleAddCase={handleAddCase} handleUploadDocument={handleUploadDocument} />}
+          {viewState.currentView === 'CALENDAR' && <CalendarView events={events} cases={cases} onAddEvent={handleAddEvent} />}
         </div>
       </main>
-      
-      {/* Legal AI Assistant - Available for Employees/Admin to help with work */}
       {currentUser.role !== UserRole.CLIENT && <LegalAssistant />}
     </div>
   );
