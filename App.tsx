@@ -6,16 +6,20 @@ import { Button3D, Input3D, Card3D, Badge, Select3D } from './components/UICompo
 import { LegalAssistant } from './components/LegalAssistant';
 import { dbAuth, dbCases, dbDocuments, dbEvents, dbEvents as dbAgenda } from './services/dbService';
 
+// v3.0 Force Sync - Added robust Error Handling for RLS and UI Feedback
+
 // --- SUB-COMPONENTS ---
 
-// v2.0 Real File Viewer
+// Real File Viewer with Object Tag
 const FileViewerModal = ({ 
   document, 
-  caseTitle, 
+  caseTitle,
+  clientName, 
   onClose 
 }: { 
   document: Document | null, 
   caseTitle: string, 
+  clientName: string,
   onClose: () => void 
 }) => {
   if (!document) return null;
@@ -29,7 +33,9 @@ const FileViewerModal = ({
         <div className="p-4 bg-legal-800 border-b border-white/10 flex justify-between items-center shrink-0">
            <div>
               <h3 className="text-legal-gold font-serif font-bold text-lg">{document.name}</h3>
-              <p className="text-xs text-slate-400">Expediente: {caseTitle} • {document.size}</p>
+              <p className="text-xs text-slate-400">
+                <span className="text-white font-bold">{clientName}</span> • Expediente: {caseTitle} • {document.size}
+              </p>
            </div>
            <div className="flex gap-2">
              {document.url && (
@@ -50,15 +56,29 @@ const FileViewerModal = ({
              </button>
            </div>
         </div>
-        <div className="flex-1 bg-[#1e293b] flex items-center justify-center overflow-hidden">
+        <div className="flex-1 bg-[#1e293b] flex items-center justify-center overflow-hidden p-1">
              {document.url ? (
                <>
                  {isPdf ? (
-                   <iframe 
-                     src={document.url} 
-                     className="w-full h-full border-none" 
-                     title="PDF Viewer"
-                   />
+                   <object
+                     data={document.url}
+                     type="application/pdf"
+                     className="w-full h-full rounded-md bg-white"
+                   >
+                     {/* Fallback content if PDF fails to load inside object */}
+                     <div className="flex flex-col items-center justify-center h-full text-slate-400 p-8 text-center bg-legal-900">
+                       <div className="text-6xl mb-4">📄</div>
+                       <p className="mb-4 text-lg">Este navegador no soporta la visualización directa de este PDF.</p>
+                       <a
+                         href={document.url}
+                         target="_blank"
+                         rel="noreferrer"
+                         className="px-6 py-3 bg-legal-gold text-legal-900 font-bold rounded hover:bg-yellow-500 transition-colors shadow-lg"
+                       >
+                         Descargar y Ver Archivo
+                       </a>
+                     </div>
+                   </object>
                  ) : isImage ? (
                    <img 
                      src={document.url} 
@@ -67,7 +87,7 @@ const FileViewerModal = ({
                    />
                  ) : (
                    <div className="text-center p-10">
-                     <div className="mb-4 text-6xl">📄</div>
+                     <div className="mb-4 text-6xl">📦</div>
                      <p className="text-white text-lg mb-4">Vista previa no disponible para este formato.</p>
                      <a 
                        href={document.url} 
@@ -384,54 +404,107 @@ const UsersView = ({
 };
 
 const CasesView = ({ 
-  currentUser, cases, users, handleAddCase, handleUploadDocument 
+  currentUser, cases, users, handleAddCase, handleUploadDocument, handleEditCase, handleDeleteCase
 }: any) => {
-  const [newCase, setNewCase] = useState({ title: '', clientId: '', description: '' });
-  const [viewingDoc, setViewingDoc] = useState<{ doc: Document, caseTitle: string } | null>(null);
+  const [formState, setFormState] = useState({ title: '', clientId: '', description: '', status: 'Abierto' });
+  const [editingCaseId, setEditingCaseId] = useState<string | null>(null);
+  const [viewingDoc, setViewingDoc] = useState<{ doc: Document, caseTitle: string, clientName: string } | null>(null);
 
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newCase.title && newCase.clientId && newCase.description) {
-      handleAddCase(newCase);
-      setNewCase({ title: '', clientId: '', description: '' });
+    if (formState.title && formState.clientId && formState.description) {
+      let success = false;
+      if (editingCaseId) {
+        success = await handleEditCase(editingCaseId, formState);
+      } else {
+        success = await handleAddCase(formState);
+      }
+      
+      // Only clear form if operation was successful
+      if (success) {
+        setFormState({ title: '', clientId: '', description: '', status: 'Abierto' });
+        setEditingCaseId(null);
+      }
     }
+  };
+
+  const startEdit = (c: Case) => {
+    setFormState({ 
+        title: c.title, 
+        clientId: c.clientId, 
+        description: c.description, 
+        status: c.status 
+    });
+    setEditingCaseId(c.id);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const cancelEdit = () => {
+    setFormState({ title: '', clientId: '', description: '', status: 'Abierto' });
+    setEditingCaseId(null);
   };
 
   const filteredCases = currentUser?.role === UserRole.CLIENT ? cases.filter((c: Case) => c.clientId === currentUser.id) : cases;
 
   return (
     <div className="space-y-8 animate-[fadeIn_0.5s_ease-out]">
-      {viewingDoc && <FileViewerModal document={viewingDoc.doc} caseTitle={viewingDoc.caseTitle} onClose={() => setViewingDoc(null)} />}
+      {viewingDoc && <FileViewerModal document={viewingDoc.doc} caseTitle={viewingDoc.caseTitle} clientName={viewingDoc.clientName} onClose={() => setViewingDoc(null)} />}
       <h2 className="text-2xl font-serif text-white">Expedientes</h2>
       {currentUser?.role !== UserRole.CLIENT && (
-        <Card3D className="mb-8 border-l-4 border-l-legal-gold">
-          <h3 className="text-lg font-bold text-white mb-4">+ Nuevo Expediente</h3>
+        <Card3D className={`mb-8 border-l-4 ${editingCaseId ? 'border-l-blue-500' : 'border-l-legal-gold'}`}>
+          <h3 className="text-lg font-bold text-white mb-4">{editingCaseId ? 'Editar Expediente' : '+ Nuevo Expediente'}</h3>
           <form onSubmit={onSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input3D label="Título" value={newCase.title} onChange={(e) => setNewCase({ ...newCase, title: e.target.value })} placeholder="Ej. Divorcio..." />
-            <Select3D label="Cliente" value={newCase.clientId} onChange={(e) => setNewCase({ ...newCase, clientId: e.target.value })} options={[{ label: 'Seleccionar', value: '' }, ...users.filter((u:User) => u.role === UserRole.CLIENT).map((c:User) => ({ label: c.name, value: c.id }))]} />
-             <div className="md:col-span-2"><Input3D label="Descripción" value={newCase.description} onChange={(e) => setNewCase({ ...newCase, description: e.target.value })} placeholder="Detalles..." /></div>
-             <div className="md:col-span-2 flex justify-end"><Button3D type="submit">Crear Expediente</Button3D></div>
+            <Input3D label="Título" value={formState.title} onChange={(e) => setFormState({ ...formState, title: e.target.value })} placeholder="Ej. Divorcio..." />
+            <Select3D label="Cliente" value={formState.clientId} onChange={(e) => setFormState({ ...formState, clientId: e.target.value })} options={[{ label: 'Seleccionar', value: '' }, ...users.filter((u:User) => u.role === UserRole.CLIENT).map((c:User) => ({ label: c.name, value: c.id }))]} />
+             
+             {editingCaseId && (
+                 <div className="md:col-span-2">
+                    <Select3D label="Estado" value={formState.status} onChange={(e) => setFormState({ ...formState, status: e.target.value })} options={[{label:'Abierto', value:'Abierto'}, {label:'En Proceso', value:'En Proceso'}, {label:'Pausado', value:'Pausado'}, {label:'Cerrado', value:'Cerrado'}]} />
+                 </div>
+             )}
+
+             <div className="md:col-span-2"><Input3D label="Descripción" value={formState.description} onChange={(e) => setFormState({ ...formState, description: e.target.value })} placeholder="Detalles..." /></div>
+             <div className="md:col-span-2 flex justify-end gap-2">
+                 {editingCaseId && <Button3D type="button" variant="ghost" onClick={cancelEdit}>Cancelar</Button3D>}
+                 <Button3D type="submit">{editingCaseId ? 'Guardar Cambios' : 'Crear Expediente'}</Button3D>
+             </div>
           </form>
         </Card3D>
       )}
       <div className="grid grid-cols-1 gap-6">
-          {filteredCases.map((c: Case) => (
+          {filteredCases.map((c: Case) => {
+            const clientName = users.find((u:User) => u.id === c.clientId)?.name || 'Cliente Desconocido';
+            return (
             <Card3D key={c.id} className="group">
-               <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="text-xl font-bold text-white">{c.title}</h3>
+               <div className="flex justify-between items-start mb-2">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                         <h3 className="text-xl font-bold text-white">{c.title}</h3>
+                         <Badge active={c.status === 'Abierto'} text={c.status} />
+                    </div>
+                    <div className="inline-block px-3 py-1 rounded-full bg-blue-900/30 border border-blue-500/30 mb-2">
+                        <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">Cliente: {clientName}</span>
+                    </div>
                     <p className="text-sm text-slate-400 mt-1">{c.description}</p>
-                    <p className="text-xs text-slate-500 mt-2">Cliente: {users.find((u:User) => u.id === c.clientId)?.name}</p>
                   </div>
-                  <Badge active={c.status === 'Abierto'} text={c.status} />
+                  {currentUser?.role !== UserRole.CLIENT && (
+                      <div className="flex gap-2 ml-4">
+                          <button onClick={() => startEdit(c)} className="p-2 bg-legal-800 hover:bg-blue-600 rounded text-slate-300 hover:text-white transition-colors" title="Editar">
+                              ✏️
+                          </button>
+                          <button onClick={() => handleDeleteCase(c.id)} className="p-2 bg-legal-800 hover:bg-red-600 rounded text-slate-300 hover:text-white transition-colors" title="Eliminar">
+                              🗑️
+                          </button>
+                      </div>
+                  )}
                </div>
-               <div className="bg-black/20 rounded p-4 border border-white/5">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase mb-3">Documentos</h4>
+               <div className="bg-black/20 rounded p-4 border border-white/5 mt-4">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase mb-3">Documentos del Cliente</h4>
                   <div className="space-y-2">
                     {c.documents.map((doc: Document) => (
                       <div key={doc.id} className="flex justify-between p-2 hover:bg-white/5 rounded">
                          <span className="text-sm text-slate-200">{doc.name} <span className="text-xs text-slate-500">({doc.type})</span></span>
-                         <button onClick={() => setViewingDoc({ doc, caseTitle: c.title })} className="text-legal-accent text-xs uppercase font-bold">Ver</button>
+                         <button onClick={() => setViewingDoc({ doc, caseTitle: c.title, clientName })} className="text-legal-accent text-xs uppercase font-bold hover:text-white transition-colors">Ver Documento</button>
                       </div>
                     ))}
                   </div>
@@ -447,7 +520,8 @@ const CasesView = ({
                   )}
                </div>
             </Card3D>
-          ))}
+          );
+          })}
       </div>
     </div>
   );
@@ -585,8 +659,42 @@ function App() {
         if (newCase) {
              const list = await dbCases.getAll();
              setCases(list);
+             alert("Expediente creado correctamente.");
+             return true;
         }
-    } catch (e) { console.error(e); }
+    } catch (e: any) { 
+        console.error(e); 
+        alert("Error al crear expediente: " + (e.message || "Permiso denegado"));
+        return false;
+    }
+    return false;
+  };
+
+  const handleEditCase = async (id: string, caseData: any) => {
+    try {
+        await dbCases.update(id, caseData);
+        const list = await dbCases.getAll();
+        setCases(list);
+        alert("Expediente actualizado correctamente.");
+        return true;
+    } catch (e: any) { 
+        console.error(e); 
+        alert("Error al actualizar: " + (e.message || "Permiso denegado (Revisa tus políticas RLS en Supabase)"));
+        return false;
+    }
+  };
+
+  const handleDeleteCase = async (id: string) => {
+    if(!window.confirm("¿Está seguro de eliminar este expediente? Se borrarán los documentos asociados.")) return;
+    try {
+        await dbCases.delete(id);
+        const list = await dbCases.getAll();
+        setCases(list);
+        alert("Expediente eliminado correctamente.");
+    } catch (e: any) { 
+        console.error(e);
+        alert("Error al eliminar: " + (e.message || "Permiso denegado (Revisa tus políticas RLS en Supabase)"));
+    }
   };
 
   const handleAddEvent = async (evtData: any) => {
@@ -662,7 +770,7 @@ function App() {
              </div>
           )}
           {viewState.currentView === 'USERS' && <UsersView users={users} currentUser={currentUser} toggleUserStatus={toggleUserStatus} onAddUser={addUser} onEditUser={editUser} onDeleteUser={deleteUser} />}
-          {viewState.currentView === 'CASES' && <CasesView currentUser={currentUser} cases={cases} users={users} handleAddCase={handleAddCase} handleUploadDocument={handleUploadDocument} />}
+          {viewState.currentView === 'CASES' && <CasesView currentUser={currentUser} cases={cases} users={users} handleAddCase={handleAddCase} handleEditCase={handleEditCase} handleDeleteCase={handleDeleteCase} handleUploadDocument={handleUploadDocument} />}
           {viewState.currentView === 'CALENDAR' && <CalendarView events={events} cases={cases} onAddEvent={handleAddEvent} />}
         </div>
       </main>
@@ -672,3 +780,4 @@ function App() {
 }
 
 export default App;
+    

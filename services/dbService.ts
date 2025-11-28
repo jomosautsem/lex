@@ -110,20 +110,39 @@ export const dbCases = {
     }));
   },
 
-  create: async (caseData: { title: string, clientId: string, description: string }) => {
+  create: async (caseData: { title: string, clientId: string, description: string, status?: string }) => {
     const { data, error } = await supabase
       .from('cases')
       .insert({
         title: caseData.title,
         client_id: caseData.clientId,
         description: caseData.description,
-        status: 'Abierto'
+        status: caseData.status || 'Abierto'
       })
       .select()
       .single();
 
     if (error) throw error;
     return data;
+  },
+
+  update: async (id: string, updates: Partial<Case>) => {
+    const dbUpdates: any = {};
+    if (updates.title) dbUpdates.title = updates.title;
+    if (updates.clientId) dbUpdates.client_id = updates.clientId;
+    if (updates.description) dbUpdates.description = updates.description;
+    if (updates.status) dbUpdates.status = updates.status;
+
+    const { error } = await supabase.from('cases').update(dbUpdates).eq('id', id);
+    if (error) throw error;
+  },
+
+  delete: async (id: string) => {
+    // Note: Documents have ON DELETE CASCADE in SQL definition, so they will be removed automatically from DB.
+    // However, files in Storage might need manual cleanup via Edge Function or Trigger, 
+    // but for this frontend scope, deleting the row is sufficient.
+    const { error } = await supabase.from('cases').delete().eq('id', id);
+    if (error) throw error;
   }
 };
 
