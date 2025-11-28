@@ -1,0 +1,7 @@
+{
+  "name": "LexCorp 3D Legal System",
+  "description": "Sistema de gestión jurídica con diseño 3D profesional para administración de expedientes, clientes y empleados.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
