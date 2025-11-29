@@ -1,5 +1,5 @@
 
-// v8.0 ASSIGN EMPLOYEE - Main Application
+// v9.0 FORCE SYNC - Employee Assignment Logic
 
 import React, { useState, useEffect } from 'react';
 import { APP_NAME } from './constants';
@@ -389,7 +389,7 @@ const UsersView = ({
     <div className="space-y-6 animate-[fadeIn_0.5s_ease-out]">
       <h2 className="text-2xl font-serif text-white mb-4">Administración de Usuarios</h2>
       <Card3D className={`border-l-4 ${editingId ? 'border-l-blue-500' : 'border-l-legal-gold'}`}>
-        <h3 className="text-lg font-bold text-white mb-4">{editingId ? 'Editar Usuario' : 'Registrar Nuevo Usuario'}</h3>
+        <h3 className="text-lg font-bold text-white mb-4">{editingId ? 'Editar Usuario / Reasignar' : 'Registrar Nuevo Usuario'}</h3>
         {successMsg && <div className="mb-4 text-emerald-400 text-sm">{successMsg}</div>}
         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
           <Input3D label="Nombre" value={formState.name} onChange={(e) => setFormState({...formState, name: e.target.value})} placeholder="Nombre" />
@@ -410,15 +410,22 @@ const UsersView = ({
           
           {/* Employee Assignment Dropdown (Only for Clients) */}
           {formState.role === UserRole.CLIENT && (
-             <Select3D 
-               label="Empleado Asignado"
-               value={formState.assignedEmployeeId}
-               onChange={(e) => setFormState({...formState, assignedEmployeeId: e.target.value})}
-               options={[
-                 { label: 'Sin Asignar / Pendiente', value: '' },
-                 ...employees.map((emp: User) => ({ label: emp.name, value: emp.id }))
-               ]}
-             />
+             <div className="lg:col-span-2">
+               <Select3D 
+                 label={editingId ? "Reasignar Empleado (Encargado)" : "Asignar Empleado Responsable"}
+                 value={formState.assignedEmployeeId}
+                 onChange={(e) => setFormState({...formState, assignedEmployeeId: e.target.value})}
+                 options={[
+                   { label: 'Sin Asignar / Pendiente', value: '' },
+                   ...employees.map((emp: User) => ({ label: `Lic. ${emp.name}`, value: emp.id }))
+                 ]}
+               />
+               {editingId && (
+                  <p className="text-[10px] text-blue-400 mt-[-10px] pl-1">
+                    Seleccione un nuevo empleado para transferir este cliente.
+                  </p>
+               )}
+             </div>
           )}
 
           <div className="lg:col-span-4 flex justify-end gap-2 mt-2">
@@ -437,10 +444,18 @@ const UsersView = ({
              <span className="px-2 py-1 bg-slate-800 rounded text-xs text-legal-gold mb-2">{user.role}</span>
              
              {/* Show Assigned Employee if Client */}
-             {user.role === UserRole.CLIENT && user.assignedEmployeeId && (
-                 <p className="text-xs text-blue-400 mt-1 border border-blue-900/50 bg-blue-900/10 px-2 py-1 rounded">
-                   👮 Encargado: {users.find((u:User) => u.id === user.assignedEmployeeId)?.name || 'Desconocido'}
-                 </p>
+             {user.role === UserRole.CLIENT && (
+                 <div className="mt-2 w-full">
+                     {user.assignedEmployeeId ? (
+                         <p className="text-xs text-blue-400 border border-blue-900/50 bg-blue-900/10 px-2 py-1 rounded">
+                           👮 Encargado: <br/><span className="font-bold text-white">{users.find((u:User) => u.id === user.assignedEmployeeId)?.name || 'Desconocido'}</span>
+                         </p>
+                     ) : (
+                         <p className="text-xs text-red-400 border border-red-900/50 bg-red-900/10 px-2 py-1 rounded">
+                            ⚠️ Sin encargado asignado
+                         </p>
+                     )}
+                 </div>
              )}
 
              {user.id !== currentUser?.id && (

@@ -1,5 +1,5 @@
 
-// v7.0 FIX DELETE - Database Service
+// v9.0 FORCE SYNC - Database Service with Sorted Users
 
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabaseClient';
 import { createClient } from '@supabase/supabase-js';
@@ -52,7 +52,11 @@ export const dbAuth = {
   },
 
   getAllUsers: async (): Promise<User[]> => {
-    const { data, error } = await supabase.from('profiles').select('*');
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .order('name', { ascending: true }); // SORTED FOR BETTER UX
+      
     if (error) throw error;
     
     return data.map((u: any) => ({
@@ -74,7 +78,10 @@ export const dbAuth = {
     if (updates.phone) dbUpdates.phone = updates.phone;
     if (updates.isActive !== undefined) dbUpdates.is_active = updates.isActive;
     // Handle employee assignment
-    if (updates.assignedEmployeeId !== undefined) dbUpdates.assigned_employee_id = updates.assignedEmployeeId || null;
+    if (updates.assignedEmployeeId !== undefined) {
+        dbUpdates.assigned_employee_id = updates.assignedEmployeeId || null;
+        console.log("Updating assignment to:", dbUpdates.assigned_employee_id);
+    }
 
     const { error } = await supabase.from('profiles').update(dbUpdates).eq('id', id);
     if (error) throw error;
