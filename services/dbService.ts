@@ -14,7 +14,7 @@ export const dbAuth = {
       email,
       password: pass,
       options: {
-        data: { name } // Metadata stored in auth.users, trigger copies to profiles
+        data: { name }
       }
     });
   },
@@ -40,6 +40,7 @@ export const dbAuth = {
       id: data.id,
       name: data.name,
       email: data.email,
+      phone: data.phone, // Map phone
       role: data.role as UserRole,
       isActive: data.is_active,
       avatarUrl: data.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(data.name)}&background=cca43b&color=0f172a`
@@ -54,6 +55,7 @@ export const dbAuth = {
       id: u.id,
       name: u.name,
       email: u.email,
+      phone: u.phone, // Map phone
       role: u.role as UserRole,
       isActive: u.is_active,
       avatarUrl: u.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}&background=cca43b&color=0f172a`
@@ -61,20 +63,31 @@ export const dbAuth = {
   },
 
   updateUser: async (id: string, updates: Partial<User>) => {
-    // Map frontend User fields to DB columns if necessary
     const dbUpdates: any = {};
     if (updates.name) dbUpdates.name = updates.name;
     if (updates.role) dbUpdates.role = updates.role;
+    if (updates.phone) dbUpdates.phone = updates.phone;
     if (updates.isActive !== undefined) dbUpdates.is_active = updates.isActive;
 
     const { error } = await supabase.from('profiles').update(dbUpdates).eq('id', id);
     if (error) throw error;
   },
 
+  // Calls the Supabase Edge Function to create a user without logging out the admin
+  createUserViaEdgeFunction: async (userData: { email: string, name: string, phone: string, role: string }) => {
+    const { data, error } = await supabase.functions.invoke('create-user', {
+        body: userData
+    });
+
+    if (error) throw error;
+    // The edge function might return 400/500 with an error field in the body
+    if (data && data.error) throw new Error(data.error);
+    
+    return data;
+  },
+
   createUserProfileDirectly: async (userData: { email: string, name: string, role: UserRole }) => {
-    // Note: Usually auth.signUp handles creation, but admins might create users directly via Edge Functions
-    // For this client-side demo, we rely on auth.signUp for creation
-    throw new Error("Creation should happen via Auth Sign Up");
+    throw new Error("Use createUserViaEdgeFunction instead");
   }
 };
 
@@ -105,7 +118,7 @@ export const dbCases = {
         type: d.type as DocType,
         uploadDate: new Date(d.upload_date).toISOString().split('T')[0],
         size: d.size,
-        url: d.url // Mapped specifically for File Viewer
+        url: d.url
       })) : []
     }));
   },
@@ -138,9 +151,6 @@ export const dbCases = {
   },
 
   delete: async (id: string) => {
-    // Note: Documents have ON DELETE CASCADE in SQL definition, so they will be removed automatically from DB.
-    // However, files in Storage might need manual cleanup via Edge Function or Trigger, 
-    // but for this frontend scope, deleting the row is sufficient.
     const { error } = await supabase.from('cases').delete().eq('id', id);
     if (error) throw error;
   }
@@ -150,7 +160,6 @@ export const dbCases = {
 
 export const dbDocuments = {
   upload: async (caseId: string, file: File, type: DocType) => {
-    // 1. Upload to Storage
     const filePath = `${caseId}/${Date.now()}_${file.name}`;
     const { error: uploadError } = await supabase.storage
       .from('documents')
@@ -158,12 +167,10 @@ export const dbDocuments = {
 
     if (uploadError) throw uploadError;
 
-    // 2. Get Public URL
     const { data: { publicUrl } } = supabase.storage
       .from('documents')
       .getPublicUrl(filePath);
 
-    // 3. Insert into DB
     const { data, error: dbError } = await supabase
       .from('documents')
       .insert({

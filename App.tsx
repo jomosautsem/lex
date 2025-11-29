@@ -6,7 +6,7 @@ import { Button3D, Input3D, Card3D, Badge, Select3D } from './components/UICompo
 import { LegalAssistant } from './components/LegalAssistant';
 import { dbAuth, dbCases, dbDocuments, dbEvents, dbEvents as dbAgenda } from './services/dbService';
 
-// v3.0 Force Sync - Added robust Error Handling for RLS and UI Feedback
+// v4.0 Fix Index and Add Phone/EdgeFunction Support
 
 // --- SUB-COMPONENTS ---
 
@@ -339,27 +339,37 @@ const CalendarView = ({
 const UsersView = ({ 
   users, currentUser, toggleUserStatus, onAddUser, onEditUser, onDeleteUser
 }: any) => {
-  const [formState, setFormState] = useState({ name: '', email: '', role: UserRole.CLIENT });
+  const [formState, setFormState] = useState({ name: '', email: '', phone: '', role: UserRole.CLIENT });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formState.name || !formState.email) return;
+    
+    setLoading(true);
     if (editingId) {
         onEditUser(editingId, formState);
         setSuccessMsg('Usuario actualizado');
+        setLoading(false);
+        setFormState({ name: '', email: '', phone: '', role: UserRole.CLIENT });
+        setEditingId(null);
+        setTimeout(() => setSuccessMsg(''), 3000);
     } else {
-        onAddUser(formState);
-        setSuccessMsg('Usuario guardado');
+        // Here we call the async add user function
+        const success = await onAddUser(formState);
+        setLoading(false);
+        if (success) {
+            setSuccessMsg('Usuario creado exitosamente');
+            setFormState({ name: '', email: '', phone: '', role: UserRole.CLIENT });
+            setTimeout(() => setSuccessMsg(''), 3000);
+        }
     }
-    setFormState({ name: '', email: '', role: UserRole.CLIENT });
-    setEditingId(null);
-    setTimeout(() => setSuccessMsg(''), 3000);
   };
 
   const handleEditClick = (user: User) => {
-    setFormState({ name: user.name, email: user.email, role: user.role });
+    setFormState({ name: user.name, email: user.email, phone: user.phone || '', role: user.role });
     setEditingId(user.id);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -370,13 +380,15 @@ const UsersView = ({
       <Card3D className={`border-l-4 ${editingId ? 'border-l-blue-500' : 'border-l-legal-gold'}`}>
         <h3 className="text-lg font-bold text-white mb-4">{editingId ? 'Editar Usuario' : 'Registrar Nuevo Usuario'}</h3>
         {successMsg && <div className="mb-4 text-emerald-400 text-sm">{successMsg}</div>}
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
           <Input3D label="Nombre" value={formState.name} onChange={(e) => setFormState({...formState, name: e.target.value})} placeholder="Nombre" />
           <Input3D label="Email" value={formState.email} onChange={(e) => setFormState({...formState, email: e.target.value})} placeholder="Email" />
+          <Input3D label="Teléfono" value={formState.phone} onChange={(e) => setFormState({...formState, phone: e.target.value})} placeholder="55 1234 5678" />
           <Select3D label="Rol" value={formState.role} onChange={(e) => setFormState({...formState, role: e.target.value as UserRole})} options={[{ label: 'Cliente', value: UserRole.CLIENT }, { label: 'Empleado', value: UserRole.EMPLOYEE }, { label: 'Admin', value: UserRole.ADMIN }]} />
-          <div className="md:col-span-3 flex justify-end gap-2">
-            {editingId && <Button3D type="button" variant="ghost" onClick={() => { setFormState({name:'',email:'',role:UserRole.CLIENT}); setEditingId(null); }}>Cancelar</Button3D>}
-            <Button3D type="submit">{editingId ? 'Guardar Cambios' : 'Dar de Alta'}</Button3D>
+          
+          <div className="lg:col-span-4 flex justify-end gap-2 mt-2">
+            {editingId && <Button3D type="button" variant="ghost" onClick={() => { setFormState({name:'',email:'', phone: '', role:UserRole.CLIENT}); setEditingId(null); }}>Cancelar</Button3D>}
+            <Button3D type="submit" disabled={loading}>{loading ? 'Procesando...' : (editingId ? 'Guardar Cambios' : 'Dar de Alta')}</Button3D>
           </div>
         </form>
       </Card3D>
@@ -385,7 +397,8 @@ const UsersView = ({
           <Card3D key={user.id} className="flex flex-col items-center text-center">
              <img src={user.avatarUrl} alt={user.name} className="w-16 h-16 rounded-full mb-2" />
              <h3 className="font-bold text-white">{user.name}</h3>
-             <p className="text-slate-400 text-sm mb-4">{user.email}</p>
+             <p className="text-slate-400 text-sm mb-1">{user.email}</p>
+             {user.phone && <p className="text-slate-500 text-xs mb-3">📞 {user.phone}</p>}
              <span className="px-2 py-1 bg-slate-800 rounded text-xs text-legal-gold mb-4">{user.role}</span>
              {user.id !== currentUser?.id && (
                 <div className="flex gap-2 w-full justify-center">
@@ -638,8 +651,18 @@ function App() {
     } catch (err) { console.error(err); }
   };
 
-  const addUser = async (userData: { name: string, email: string, role: UserRole }) => {
-      alert("Para agregar usuarios reales, pídales que se registren o use el panel de Supabase.");
+  const addUser = async (userData: any) => {
+      try {
+        await dbAuth.createUserViaEdgeFunction(userData);
+        // Refresh user list after creation
+        const list = await dbAuth.getAllUsers();
+        setUsers(list);
+        return true;
+      } catch (e: any) {
+        console.error(e);
+        alert("Error al crear usuario: " + (e.message || "Error desconocido"));
+        return false;
+      }
   };
 
   const editUser = async (id: string, userData: any) => {
@@ -780,4 +803,3 @@ function App() {
 }
 
 export default App;
-    

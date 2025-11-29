@@ -9,6 +9,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  phone?: string; // Added phone field
   role: UserRole;
   isActive: boolean;
   avatarUrl?: string;
@@ -28,13 +29,13 @@ export interface Document {
   type: DocType;
   uploadDate: string;
   size: string;
-  url?: string; // Field added for real file viewing
+  url?: string;
 }
 
 export interface Case {
   id: string;
   title: string;
-  clientId: string; // Links to a User with CLIENT role
+  clientId: string;
   status: 'Abierto' | 'En Proceso' | 'Cerrado' | 'Pausado';
   description: string;
   documents: Document[];
@@ -51,10 +52,10 @@ export enum EventType {
 export interface LegalEvent {
   id: string;
   title: string;
-  date: string; // YYYY-MM-DD
-  time: string; // HH:MM
+  date: string;
+  time: string;
   type: EventType;
-  caseId: string; // Optional link to a case
+  caseId: string;
   description: string;
 }
 
