@@ -1,3 +1,4 @@
+// v7.0 FIX DELETE - Main Application
 
 import React, { useState, useEffect } from 'react';
 import { APP_NAME } from './constants';
@@ -5,8 +6,6 @@ import { User, UserRole, Case, DocType, Document, ViewState, LegalEvent, EventTy
 import { Button3D, Input3D, Card3D, Badge, Select3D } from './components/UIComponents';
 import { LegalAssistant } from './components/LegalAssistant';
 import { dbAuth, dbCases, dbDocuments, dbEvents, dbEvents as dbAgenda } from './services/dbService';
-
-// v6.0 Add Password to Admin User Creation
 
 // --- SUB-COMPONENTS ---
 
@@ -689,8 +688,18 @@ function App() {
       } catch (e) { console.error(e); }
   };
 
-  const deleteUser = (id: string) => {
-      alert("La eliminación de usuarios debe hacerse desde el panel de Supabase por seguridad.");
+  const deleteUser = async (id: string) => {
+      if(!window.confirm("¿Está seguro de eliminar a este usuario? Esta acción no se puede deshacer.")) return;
+      try {
+          // Llama a la base de datos para borrar el perfil
+          await dbAuth.deleteUser(id);
+          // Actualiza el estado local para quitarlo de la lista inmediatamente
+          setUsers(prev => prev.filter(u => u.id !== id));
+          alert("Usuario eliminado correctamente.");
+      } catch (e: any) {
+          console.error(e);
+          alert("Error al eliminar: " + (e.message || "Permiso denegado. Revisa que ejecutaste el SQL de permisos en Supabase."));
+      }
   };
 
   const handleAddCase = async (caseData: any) => {

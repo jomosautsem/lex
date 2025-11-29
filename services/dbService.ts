@@ -1,3 +1,4 @@
+// v7.0 FIX DELETE - Database Service
 
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabaseClient';
 import { createClient } from '@supabase/supabase-js';
@@ -71,6 +72,14 @@ export const dbAuth = {
     if (updates.isActive !== undefined) dbUpdates.is_active = updates.isActive;
 
     const { error } = await supabase.from('profiles').update(dbUpdates).eq('id', id);
+    if (error) throw error;
+  },
+
+  // Método nuevo para eliminar usuarios de la tabla de perfiles
+  deleteUser: async (id: string) => {
+    // Esto borra el perfil, lo que efectivamente elimina al usuario de la aplicación
+    // Nota: Requiere la política RLS: CREATE POLICY "Admins can delete profiles" ...
+    const { error } = await supabase.from('profiles').delete().eq('id', id);
     if (error) throw error;
   },
 
