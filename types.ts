@@ -9,10 +9,11 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  phone?: string; // Added phone field
+  phone?: string;
   role: UserRole;
   isActive: boolean;
   avatarUrl?: string;
+  assignedEmployeeId?: string; // New field for employee assignment
 }
 
 export enum DocType {

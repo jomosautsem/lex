@@ -1,4 +1,5 @@
-// v7.0 FIX DELETE - Main Application
+
+// v8.0 ASSIGN EMPLOYEE - Main Application
 
 import React, { useState, useEffect } from 'react';
 import { APP_NAME } from './constants';
@@ -338,10 +339,15 @@ const CalendarView = ({
 const UsersView = ({ 
   users, currentUser, toggleUserStatus, onAddUser, onEditUser, onDeleteUser
 }: any) => {
-  const [formState, setFormState] = useState({ name: '', email: '', phone: '', role: UserRole.CLIENT, password: '' });
+  const [formState, setFormState] = useState({ 
+    name: '', email: '', phone: '', role: UserRole.CLIENT, password: '', assignedEmployeeId: '' 
+  });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Filter employees for the assignment dropdown
+  const employees = users.filter((u: User) => u.role === UserRole.EMPLOYEE);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -352,23 +358,29 @@ const UsersView = ({
         onEditUser(editingId, formState);
         setSuccessMsg('Usuario actualizado');
         setLoading(false);
-        setFormState({ name: '', email: '', phone: '', role: UserRole.CLIENT, password: '' });
+        setFormState({ name: '', email: '', phone: '', role: UserRole.CLIENT, password: '', assignedEmployeeId: '' });
         setEditingId(null);
         setTimeout(() => setSuccessMsg(''), 3000);
     } else {
-        // Here we call the async add user function
         const success = await onAddUser(formState);
         setLoading(false);
         if (success) {
             setSuccessMsg('Usuario creado exitosamente');
-            setFormState({ name: '', email: '', phone: '', role: UserRole.CLIENT, password: '' });
+            setFormState({ name: '', email: '', phone: '', role: UserRole.CLIENT, password: '', assignedEmployeeId: '' });
             setTimeout(() => setSuccessMsg(''), 3000);
         }
     }
   };
 
   const handleEditClick = (user: User) => {
-    setFormState({ name: user.name, email: user.email, phone: user.phone || '', role: user.role, password: '' });
+    setFormState({ 
+      name: user.name, 
+      email: user.email, 
+      phone: user.phone || '', 
+      role: user.role, 
+      password: '',
+      assignedEmployeeId: user.assignedEmployeeId || ''
+    });
     setEditingId(user.id);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -384,7 +396,6 @@ const UsersView = ({
           <Input3D label="Email" value={formState.email} onChange={(e) => setFormState({...formState, email: e.target.value})} placeholder="Email" />
           <Input3D label="Teléfono" value={formState.phone} onChange={(e) => setFormState({...formState, phone: e.target.value})} placeholder="55 1234 5678" />
           
-          {/* Show Password input only when creating new user */}
           {!editingId && (
             <Input3D 
               label="Contraseña" 
@@ -397,8 +408,21 @@ const UsersView = ({
 
           <Select3D label="Rol" value={formState.role} onChange={(e) => setFormState({...formState, role: e.target.value as UserRole})} options={[{ label: 'Cliente', value: UserRole.CLIENT }, { label: 'Empleado', value: UserRole.EMPLOYEE }, { label: 'Admin', value: UserRole.ADMIN }]} />
           
+          {/* Employee Assignment Dropdown (Only for Clients) */}
+          {formState.role === UserRole.CLIENT && (
+             <Select3D 
+               label="Empleado Asignado"
+               value={formState.assignedEmployeeId}
+               onChange={(e) => setFormState({...formState, assignedEmployeeId: e.target.value})}
+               options={[
+                 { label: 'Sin Asignar / Pendiente', value: '' },
+                 ...employees.map((emp: User) => ({ label: emp.name, value: emp.id }))
+               ]}
+             />
+          )}
+
           <div className="lg:col-span-4 flex justify-end gap-2 mt-2">
-            {editingId && <Button3D type="button" variant="ghost" onClick={() => { setFormState({name:'',email:'', phone: '', role:UserRole.CLIENT, password: ''}); setEditingId(null); }}>Cancelar</Button3D>}
+            {editingId && <Button3D type="button" variant="ghost" onClick={() => { setFormState({name:'',email:'', phone: '', role:UserRole.CLIENT, password: '', assignedEmployeeId: ''}); setEditingId(null); }}>Cancelar</Button3D>}
             <Button3D type="submit" disabled={loading}>{loading ? 'Procesando...' : (editingId ? 'Guardar Cambios' : 'Dar de Alta')}</Button3D>
           </div>
         </form>
@@ -409,10 +433,18 @@ const UsersView = ({
              <img src={user.avatarUrl} alt={user.name} className="w-16 h-16 rounded-full mb-2" />
              <h3 className="font-bold text-white">{user.name}</h3>
              <p className="text-slate-400 text-sm mb-1">{user.email}</p>
-             {user.phone && <p className="text-slate-500 text-xs mb-3">📞 {user.phone}</p>}
-             <span className="px-2 py-1 bg-slate-800 rounded text-xs text-legal-gold mb-4">{user.role}</span>
+             {user.phone && <p className="text-slate-500 text-xs mb-2">📞 {user.phone}</p>}
+             <span className="px-2 py-1 bg-slate-800 rounded text-xs text-legal-gold mb-2">{user.role}</span>
+             
+             {/* Show Assigned Employee if Client */}
+             {user.role === UserRole.CLIENT && user.assignedEmployeeId && (
+                 <p className="text-xs text-blue-400 mt-1 border border-blue-900/50 bg-blue-900/10 px-2 py-1 rounded">
+                   👮 Encargado: {users.find((u:User) => u.id === user.assignedEmployeeId)?.name || 'Desconocido'}
+                 </p>
+             )}
+
              {user.id !== currentUser?.id && (
-                <div className="flex gap-2 w-full justify-center">
+                <div className="flex gap-2 w-full justify-center mt-4">
                     <Button3D variant="ghost" className="text-xs" onClick={() => handleEditClick(user)}>Editar</Button3D>
                     <Button3D variant={user.isActive ? 'danger' : 'success'} onClick={() => toggleUserStatus(user.id)} className="text-xs">
                         {user.isActive ? 'Desactivar' : 'Activar'}

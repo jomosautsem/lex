@@ -1,3 +1,4 @@
+
 // v7.0 FIX DELETE - Database Service
 
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabaseClient';
@@ -42,10 +43,11 @@ export const dbAuth = {
       id: data.id,
       name: data.name,
       email: data.email,
-      phone: data.phone, // Map phone
+      phone: data.phone,
       role: data.role as UserRole,
       isActive: data.is_active,
-      avatarUrl: data.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(data.name)}&background=cca43b&color=0f172a`
+      avatarUrl: data.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(data.name)}&background=cca43b&color=0f172a`,
+      assignedEmployeeId: data.assigned_employee_id // Map DB column
     };
   },
 
@@ -57,10 +59,11 @@ export const dbAuth = {
       id: u.id,
       name: u.name,
       email: u.email,
-      phone: u.phone, // Map phone
+      phone: u.phone,
       role: u.role as UserRole,
       isActive: u.is_active,
-      avatarUrl: u.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}&background=cca43b&color=0f172a`
+      avatarUrl: u.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}&background=cca43b&color=0f172a`,
+      assignedEmployeeId: u.assigned_employee_id // Map DB column
     }));
   },
 
@@ -70,35 +73,30 @@ export const dbAuth = {
     if (updates.role) dbUpdates.role = updates.role;
     if (updates.phone) dbUpdates.phone = updates.phone;
     if (updates.isActive !== undefined) dbUpdates.is_active = updates.isActive;
+    // Handle employee assignment
+    if (updates.assignedEmployeeId !== undefined) dbUpdates.assigned_employee_id = updates.assignedEmployeeId || null;
 
     const { error } = await supabase.from('profiles').update(dbUpdates).eq('id', id);
     if (error) throw error;
   },
 
-  // Método nuevo para eliminar usuarios de la tabla de perfiles
   deleteUser: async (id: string) => {
-    // Esto borra el perfil, lo que efectivamente elimina al usuario de la aplicación
-    // Nota: Requiere la política RLS: CREATE POLICY "Admins can delete profiles" ...
     const { error } = await supabase.from('profiles').delete().eq('id', id);
     if (error) throw error;
   },
 
-  // "Ghost Client" Strategy: Creates a user using a temporary, non-persisting client.
-  // This avoids logging out the main admin user and avoids CORS errors from Edge Functions.
-  adminCreateUser: async (userData: { email: string, name: string, phone: string, role: string, password?: string }) => {
-    // 1. Create a temporary client configuration that DOES NOT persist session to localStorage
+  // "Ghost Client" Strategy
+  adminCreateUser: async (userData: { email: string, name: string, phone: string, role: string, password?: string, assignedEmployeeId?: string }) => {
     const tempClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         auth: {
-            persistSession: false, // Vital: prevents overwriting the admin's session
+            persistSession: false,
             autoRefreshToken: false,
             detectSessionInUrl: false
         }
     });
 
-    // 2. Use the provided password or fallback to a temp one (though UI enforces input)
     const passwordToUse = userData.password || Math.random().toString(36).slice(-8) + "Aa1!";
 
-    // 3. Register the user using the temporary client
     const { data, error } = await tempClient.auth.signUp({
         email: userData.email,
         password: passwordToUse,
@@ -110,19 +108,17 @@ export const dbAuth = {
     if (error) throw error;
     if (!data.user) throw new Error("No se pudo crear el usuario (Auth response empty)");
 
-    // 4. Update the profile with extra details (Role, Phone) using the ADMIN's authenticated client
-    // We wait a moment for the database trigger to create the initial profile row
     await new Promise(resolve => setTimeout(resolve, 500));
 
     const { error: updateError } = await supabase
         .from('profiles')
         .update({
             phone: userData.phone,
-            role: userData.role
+            role: userData.role,
+            assigned_employee_id: userData.assignedEmployeeId || null // Save assignment on creation if provided
         })
         .eq('id', data.user.id);
 
-    // If update fails (e.g. trigger didn't run fast enough), we upsert to ensure data integrity
     if (updateError) {
         console.warn("Update failed, attempting upsert...", updateError);
         await supabase.from('profiles').upsert({
@@ -130,7 +126,8 @@ export const dbAuth = {
             email: userData.email,
             name: userData.name,
             phone: userData.phone,
-            role: userData.role
+            role: userData.role,
+            assigned_employee_id: userData.assignedEmployeeId || null
         });
     }
 
