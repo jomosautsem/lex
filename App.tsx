@@ -6,7 +6,7 @@ import { Button3D, Input3D, Card3D, Badge, Select3D } from './components/UICompo
 import { LegalAssistant } from './components/LegalAssistant';
 import { dbAuth, dbCases, dbDocuments, dbEvents, dbEvents as dbAgenda } from './services/dbService';
 
-// v4.0 Fix Index and Add Phone/EdgeFunction Support
+// v5.0 Fix Edge Function Password and Refresh Delay
 
 // --- SUB-COMPONENTS ---
 
@@ -654,6 +654,8 @@ function App() {
   const addUser = async (userData: any) => {
       try {
         await dbAuth.createUserViaEdgeFunction(userData);
+        // Delay to allow trigger/edge function to finish DB updates
+        await new Promise(resolve => setTimeout(resolve, 2000));
         // Refresh user list after creation
         const list = await dbAuth.getAllUsers();
         setUsers(list);

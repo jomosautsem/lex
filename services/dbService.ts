@@ -75,8 +75,16 @@ export const dbAuth = {
 
   // Calls the Supabase Edge Function to create a user without logging out the admin
   createUserViaEdgeFunction: async (userData: { email: string, name: string, phone: string, role: string }) => {
+    // Generate a strong temporary password if not provided
+    const tempPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8) + "Aa1!";
+    
+    const body = {
+        ...userData,
+        password: tempPassword 
+    };
+
     const { data, error } = await supabase.functions.invoke('create-user', {
-        body: userData
+        body: body
     });
 
     if (error) throw error;
