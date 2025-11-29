@@ -76,7 +76,7 @@ export const dbAuth = {
 
   // "Ghost Client" Strategy: Creates a user using a temporary, non-persisting client.
   // This avoids logging out the main admin user and avoids CORS errors from Edge Functions.
-  adminCreateUser: async (userData: { email: string, name: string, phone: string, role: string }) => {
+  adminCreateUser: async (userData: { email: string, name: string, phone: string, role: string, password?: string }) => {
     // 1. Create a temporary client configuration that DOES NOT persist session to localStorage
     const tempClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         auth: {
@@ -86,13 +86,13 @@ export const dbAuth = {
         }
     });
 
-    // 2. Generate a temporary password
-    const tempPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8) + "Aa1!";
+    // 2. Use the provided password or fallback to a temp one (though UI enforces input)
+    const passwordToUse = userData.password || Math.random().toString(36).slice(-8) + "Aa1!";
 
     // 3. Register the user using the temporary client
     const { data, error } = await tempClient.auth.signUp({
         email: userData.email,
-        password: tempPassword,
+        password: passwordToUse,
         options: {
             data: { name: userData.name }
         }

@@ -6,7 +6,7 @@ import { Button3D, Input3D, Card3D, Badge, Select3D } from './components/UICompo
 import { LegalAssistant } from './components/LegalAssistant';
 import { dbAuth, dbCases, dbDocuments, dbEvents, dbEvents as dbAgenda } from './services/dbService';
 
-// v5.1 Fix Failed to send request by using Ghost Client strategy
+// v6.0 Add Password to Admin User Creation
 
 // --- SUB-COMPONENTS ---
 
@@ -339,7 +339,7 @@ const CalendarView = ({
 const UsersView = ({ 
   users, currentUser, toggleUserStatus, onAddUser, onEditUser, onDeleteUser
 }: any) => {
-  const [formState, setFormState] = useState({ name: '', email: '', phone: '', role: UserRole.CLIENT });
+  const [formState, setFormState] = useState({ name: '', email: '', phone: '', role: UserRole.CLIENT, password: '' });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
@@ -353,7 +353,7 @@ const UsersView = ({
         onEditUser(editingId, formState);
         setSuccessMsg('Usuario actualizado');
         setLoading(false);
-        setFormState({ name: '', email: '', phone: '', role: UserRole.CLIENT });
+        setFormState({ name: '', email: '', phone: '', role: UserRole.CLIENT, password: '' });
         setEditingId(null);
         setTimeout(() => setSuccessMsg(''), 3000);
     } else {
@@ -362,14 +362,14 @@ const UsersView = ({
         setLoading(false);
         if (success) {
             setSuccessMsg('Usuario creado exitosamente');
-            setFormState({ name: '', email: '', phone: '', role: UserRole.CLIENT });
+            setFormState({ name: '', email: '', phone: '', role: UserRole.CLIENT, password: '' });
             setTimeout(() => setSuccessMsg(''), 3000);
         }
     }
   };
 
   const handleEditClick = (user: User) => {
-    setFormState({ name: user.name, email: user.email, phone: user.phone || '', role: user.role });
+    setFormState({ name: user.name, email: user.email, phone: user.phone || '', role: user.role, password: '' });
     setEditingId(user.id);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -384,10 +384,22 @@ const UsersView = ({
           <Input3D label="Nombre" value={formState.name} onChange={(e) => setFormState({...formState, name: e.target.value})} placeholder="Nombre" />
           <Input3D label="Email" value={formState.email} onChange={(e) => setFormState({...formState, email: e.target.value})} placeholder="Email" />
           <Input3D label="Teléfono" value={formState.phone} onChange={(e) => setFormState({...formState, phone: e.target.value})} placeholder="55 1234 5678" />
+          
+          {/* Show Password input only when creating new user */}
+          {!editingId && (
+            <Input3D 
+              label="Contraseña" 
+              type="password"
+              value={formState.password} 
+              onChange={(e) => setFormState({...formState, password: e.target.value})} 
+              placeholder="Contraseña Inicial" 
+            />
+          )}
+
           <Select3D label="Rol" value={formState.role} onChange={(e) => setFormState({...formState, role: e.target.value as UserRole})} options={[{ label: 'Cliente', value: UserRole.CLIENT }, { label: 'Empleado', value: UserRole.EMPLOYEE }, { label: 'Admin', value: UserRole.ADMIN }]} />
           
           <div className="lg:col-span-4 flex justify-end gap-2 mt-2">
-            {editingId && <Button3D type="button" variant="ghost" onClick={() => { setFormState({name:'',email:'', phone: '', role:UserRole.CLIENT}); setEditingId(null); }}>Cancelar</Button3D>}
+            {editingId && <Button3D type="button" variant="ghost" onClick={() => { setFormState({name:'',email:'', phone: '', role:UserRole.CLIENT, password: ''}); setEditingId(null); }}>Cancelar</Button3D>}
             <Button3D type="submit" disabled={loading}>{loading ? 'Procesando...' : (editingId ? 'Guardar Cambios' : 'Dar de Alta')}</Button3D>
           </div>
         </form>
