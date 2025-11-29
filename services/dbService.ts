@@ -1,5 +1,6 @@
 
-import { supabase } from './supabaseClient';
+import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabaseClient';
+import { createClient } from '@supabase/supabase-js';
 import { User, UserRole, Case, Document, DocType, LegalEvent, EventType } from '../types';
 
 // --- AUTH & USERS ---
@@ -73,29 +74,58 @@ export const dbAuth = {
     if (error) throw error;
   },
 
-  // Calls the Supabase Edge Function to create a user without logging out the admin
-  createUserViaEdgeFunction: async (userData: { email: string, name: string, phone: string, role: string }) => {
-    // Generate a strong temporary password if not provided
-    const tempPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8) + "Aa1!";
-    
-    const body = {
-        ...userData,
-        password: tempPassword 
-    };
+  // "Ghost Client" Strategy: Creates a user using a temporary, non-persisting client.
+  // This avoids logging out the main admin user and avoids CORS errors from Edge Functions.
+  adminCreateUser: async (userData: { email: string, name: string, phone: string, role: string }) => {
+    // 1. Create a temporary client configuration that DOES NOT persist session to localStorage
+    const tempClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: {
+            persistSession: false, // Vital: prevents overwriting the admin's session
+            autoRefreshToken: false,
+            detectSessionInUrl: false
+        }
+    });
 
-    const { data, error } = await supabase.functions.invoke('create-user', {
-        body: body
+    // 2. Generate a temporary password
+    const tempPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8) + "Aa1!";
+
+    // 3. Register the user using the temporary client
+    const { data, error } = await tempClient.auth.signUp({
+        email: userData.email,
+        password: tempPassword,
+        options: {
+            data: { name: userData.name }
+        }
     });
 
     if (error) throw error;
-    // The edge function might return 400/500 with an error field in the body
-    if (data && data.error) throw new Error(data.error);
-    
-    return data;
-  },
+    if (!data.user) throw new Error("No se pudo crear el usuario (Auth response empty)");
 
-  createUserProfileDirectly: async (userData: { email: string, name: string, role: UserRole }) => {
-    throw new Error("Use createUserViaEdgeFunction instead");
+    // 4. Update the profile with extra details (Role, Phone) using the ADMIN's authenticated client
+    // We wait a moment for the database trigger to create the initial profile row
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+            phone: userData.phone,
+            role: userData.role
+        })
+        .eq('id', data.user.id);
+
+    // If update fails (e.g. trigger didn't run fast enough), we upsert to ensure data integrity
+    if (updateError) {
+        console.warn("Update failed, attempting upsert...", updateError);
+        await supabase.from('profiles').upsert({
+            id: data.user.id,
+            email: userData.email,
+            name: userData.name,
+            phone: userData.phone,
+            role: userData.role
+        });
+    }
+
+    return data.user;
   }
 };
 
